@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIM — Muhammad Ismoil</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.cdnfonts.com/css/surgena-personal-use-only" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+
+  <!-- Cursor -->
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-follower" id="cursorFollower"></div>
+
+  <!-- Canvas for topographic background animation -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <a href="#home" class="nav-logo">
+      <img src="logo.png" alt="MIM" class="nav-logo-img" />
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#about"     class="nav-link" data-i18n="nav_about">About</a></li>
+      <li><a href="#portfolio" class="nav-link" data-i18n="nav_portfolio">Portfolio</a></li>
+      <li><a href="#skills"    class="nav-link" data-i18n="nav_skills">Skills</a></li>
+      <li><a href="#channels"  class="nav-link" data-i18n="nav_channels">Channels</a></li>
+      <li><a href="#contact"   class="nav-link" data-i18n="nav_contact">Contact</a></li>
+    </ul>
+    <!-- Language toggle -->
+    <button class="lang-toggle" id="langToggle" aria-label="Switch language">
+      <span class="lang-opt" id="langEN">EN</span>
+      <span class="lang-sep">/</span>
+      <span class="lang-opt" id="langUZ">UZ</span>
+    </button>
+    <!-- Mobile hamburger -->
+    <button class="nav-toggle" id="navToggle" aria-label="Menu">
+      <span class="nt-bar"></span>
+      <span class="nt-bar"></span>
+    </button>
+  </nav>
+
+  <!-- Mobile full-screen menu -->
+  <div class="mob-menu" id="mobMenu">
+    <div class="mob-menu-inner">
+      <nav class="mob-nav">
+        <a href="#about"     class="mob-link" data-i18n="nav_about"><span class="mob-num">01</span>About</a>
+        <a href="#portfolio" class="mob-link" data-i18n="nav_portfolio"><span class="mob-num">02</span>Portfolio</a>
+        <a href="#skills"    class="mob-link" data-i18n="nav_skills"><span class="mob-num">03</span>Skills</a>
+        <a href="#channels"  class="mob-link" data-i18n="nav_channels"><span class="mob-num">04</span>Channels</a>
+        <a href="#contact"   class="mob-link" data-i18n="nav_contact"><span class="mob-num">05</span>Contact</a>
+      </nav>
+      <div class="mob-footer">
+        <div class="mob-socials">
+          <a href="https://t.me/MIMcoder"              target="_blank" rel="noopener">Telegram ↗</a>
+          <a href="https://www.youtube.com/@MIM_coder" target="_blank" rel="noopener">YouTube ↗</a>
+          <a href="https://github.com/mrIsmoil"        target="_blank" rel="noopener">GitHub ↗</a>
+        </div>
+        <span class="mob-copy">© 2026 MIM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="hero-photo-wrap">
+      <img src="img.png" alt="Muhammad Ismoil" class="hero-photo" />
+    </div>
+    <div class="hero-left">
+      <div class="hero-badge"><span class="badge-dot"></span><span data-i18n="hero_badge">Available for opportunities</span></div>
+      <h1 class="hero-tagline" data-i18n="hero_tagline">Full Stack Developer</h1>
+    </div>
+    <div class="hero-right">
+      <div class="hero-cta">
+        <a href="#portfolio" class="btn btn-primary"><span data-i18n="hero_btn1">See my work</span> <span class="btn-arrow">→</span></a>
+        <a href="#contact"   class="btn btn-outline" data-i18n="hero_btn2">Get in Touch</a>
+      </div>
+    </div>
+    <div class="hero-bigname">MIM</div>
+  </section>
+
+  <!-- About Section -->
+  <section class="section about" id="about">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-number">01</span>
+        <h2 class="section-title" data-i18n="about_title">About Me</h2>
+      </div>
+      <div class="about-grid">
+        <div class="about-text">
+          <p class="about-lead" data-i18n="about_lead">
+            A 17-year-old developer and creator from <strong>Kokand, Uzbekistan</strong>, passionate about building useful and meaningful projects.
+          </p>
+          <p data-i18n="about_p1">
+            I study at <strong>Target International School</strong>, where I balance academic learning with a strong focus on technology and hands-on development. I strongly believe in learning through building, and I improve my skills with every project I complete.
+          </p>
+          <p data-i18n="about_p2">
+            Outside of coding, I explore new ideas, work on creative projects, and continuously challenge myself to grow as a developer and thinker.
+          </p>
+          <div class="about-stats">
+            <div class="stat-card">
+              <span class="stat-num">17</span>
+              <span class="stat-label" data-i18n="stat_age">Age</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">10+</span>
+              <span class="stat-label" data-i18n="stat_projects">Projects</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">∞</span>
+              <span class="stat-label" data-i18n="stat_ideas">Ideas</span>
+            </div>
+          </div>
+        </div>
+        <div class="about-card-3d">
+          <div class="profile-card" id="profileCard">
+            <div class="card-glow"></div>
+            <div class="card-content">
+              <div class="card-logo">MIM</div>
+              <div class="card-info">
+                <h3>Muhammad Ismoil</h3>
+                <p data-i18n="card_role">Developer & Creator</p>
+                <div class="card-detail"><span>📍 Kokand, Uzbekistan</span></div>
+                <div class="card-detail"><span>🎓 Target International School</span></div>
+              </div>
+              <div class="card-strip"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Portfolio Section -->
+  <section class="section portfolio" id="portfolio">
+    <div class="portfolio-scroll-wrapper" id="portfolioWrapper">
+      <div class="portfolio-stage" id="portfolioStage">
+
+        <div class="ps-section-label">
+          <span class="section-number">02</span>
+          <h2 class="section-title" data-i18n="portfolio_title">Portfolio</h2>
+        </div>
+
+        <div class="portfolio-dots" id="portfolioDots">
+          <button class="pdot active" data-index="0"></button>
+          <button class="pdot" data-index="1"></button>
+          <button class="pdot" data-index="2"></button>
+          <button class="pdot" data-index="3"></button>
+        </div>
+
+        <!-- Slide 01 — Tonsor (Featured) -->
+        <div class="portfolio-slide featured active" data-index="0">
+          <div class="ps-bg-num">01</div>
+          <div class="ps-visual">
+            <div class="ps-img-frame tonsor-frame">
+              <div class="ps-glow" style="--c:220,50,50"></div>
+              <div class="ps-tonsor-preview">
+                <div class="ps-tonsor-label">DEVELOPED BY MIM</div>
+                <div class="ps-tonsor-heading">Pure Mastery.</div>
+                <div class="ps-tonsor-sub">Tonsor — Elite Barber Platform</div>
+                <div class="ps-tonsor-btn">START EXPERIENCE</div>
+              </div>
+            </div>
+          </div>
+          <div class="ps-info">
+            <div class="ps-num">01 / 04</div>
+            <h3 class="ps-title" data-i18n="proj1_title">Tonsor</h3>
+            <p class="ps-desc" data-i18n="proj1_desc">An exclusive digital platform connecting elite barbers with their clients — booking, profiles, and business tools in one place.</p>
+            <div class="ps-tags">
+              <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Python</span><span>Django</span>
+            </div>
+            <div class="ps-links">
+              <a href="https://mim.pythonanywhere.com" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
+              <a href="https://github.com/mrIsmoil/Tonsor" target="_blank" class="ps-link" data-i18n="link_code">Code →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 02 — O'zbekiston -->
+        <div class="portfolio-slide" data-index="1">
+          <div class="ps-bg-num">02</div>
+          <div class="ps-visual">
+            <div class="ps-img-frame uzbek-frame">
+              <div class="ps-glow" style="--c:0,120,200"></div>
+              <div class="ps-uzbek-preview">
+                <div class="ps-uzbek-flag-stripe"></div>
+                <div class="ps-uzbek-body">
+                  <div class="ps-uzbek-crescent">
+                    <div class="ps-uzbek-moon"></div>
+                    <div class="ps-uzbek-stars">
+                      <span></span><span></span><span></span>
+                      <span></span><span></span><span></span>
+                    </div>
+                  </div>
+                  <div class="ps-uzbek-label">MARKAZIY OSIYO · 1991</div>
+                  <div class="ps-uzbek-heading">O'ZBEKISTON</div>
+                  <div class="ps-uzbek-tagline">BIR XALQ · BIR TARIX · BIR KELAJAK</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ps-info">
+            <div class="ps-num">02 / 04</div>
+            <h3 class="ps-title" data-i18n="proj2_title">O'zbekiston</h3>
+            <p class="ps-desc" data-i18n="proj2_desc">An immersive web experience showcasing the history, culture, and regions of Uzbekistan — built with cinematic design.</p>
+            <div class="ps-tags">
+              <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Next.js</span>
+            </div>
+            <div class="ps-links">
+              <a href="https://uzculture.vercel.app" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
+              <a href="https://github.com/mrIsmoil/uzbek" target="_blank" class="ps-link" data-i18n="link_code">Code →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 03 — MIM Logistic -->
+        <div class="portfolio-slide" data-index="2">
+          <div class="ps-bg-num">03</div>
+          <div class="ps-visual">
+            <div class="ps-img-frame logistic-frame">
+              <div class="ps-glow" style="--c:255,160,40"></div>
+              <div class="ps-logistic-preview">
+                <div class="ps-logistic-grid"></div>
+                <div class="ps-logistic-content">
+                  <div class="ps-logistic-label">LOGISTICS · DELIVERY</div>
+                  <div class="ps-logistic-heading">MIM<span>LOGISTIC</span></div>
+                  <div class="ps-logistic-sub">Fast · Reliable · Global</div>
+                  <div class="ps-logistic-wip">⚡ In Progress</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ps-info">
+            <div class="ps-num">03 / 04</div>
+            <h3 class="ps-title" data-i18n="proj3_title">MIM Logistic</h3>
+            <p class="ps-desc" data-i18n="proj3_desc">A professional website for logistics companies — clean design with tracking, routing, and service showcase features.</p>
+            <div class="ps-tags">
+              <span>HTML</span><span>CSS</span><span>JavaScript</span><span data-i18n="wip_tag">In Progress</span>
+            </div>
+            <div class="ps-links">
+              <a href="https://mimlogistic.netlify.app" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 04 — Maison Aura -->
+        <div class="portfolio-slide" data-index="3">
+          <div class="ps-bg-num">04</div>
+          <div class="ps-visual">
+            <div class="ps-img-frame aura-frame">
+              <div class="ps-glow" style="--c:210,175,120"></div>
+              <div class="ps-aura-preview">
+                <div class="ps-aura-overline">COLLECTION 2025</div>
+                <div class="ps-aura-brand">MAISON<br>AURA</div>
+                <div class="ps-aura-tagline">Luxury Online Boutique</div>
+                <div class="ps-aura-divider"></div>
+                <div class="ps-aura-sub">SHOP · DISCOVER · ELEVATE</div>
+              </div>
+            </div>
+          </div>
+          <div class="ps-info">
+            <div class="ps-num">04 / 04</div>
+            <h3 class="ps-title" data-i18n="proj4_title">Maison Aura</h3>
+            <p class="ps-desc" data-i18n="proj4_desc">A classic-style online boutique with luxury aesthetics — elegant product showcase, smooth UI, and refined shopping experience.</p>
+            <div class="ps-tags">
+              <span>HTML</span><span>CSS</span><span>JavaScript</span>
+            </div>
+            <div class="ps-links">
+              <a href="https://mimshoping.netlify.app/" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Skills Section -->
+  <section class="section skills" id="skills">
+    <div class="skills-scroll-wrapper" id="skillsWrapper">
+      <div class="skills-stage" id="skillsStage">
+        <div class="ss-section-label">
+          <span class="section-number">03</span>
+          <h2 class="section-title" data-i18n="skills_title">Skills</h2>
+        </div>
+        <div class="ss-arc-wrap" id="ssArcWrap"></div>
+        <div class="ss-slides" id="ssSlides"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Channels Section -->
+  <section class="section channels" id="channels">
+    <div class="ch-bg-word">CHANNELS</div>
+    <div class="container">
+
+      <div class="ch-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title" data-i18n="channels_title">Channels</h2>
+      </div>
+      <p class="ch-sub" data-i18n="channels_lead">Find me across the internet.</p>
+
+      <div class="ch-bento">
+
+        <!-- 01 Telegram — featured wide -->
+        <a href="https://t.me/MIMcoder" class="ch-card ch-feat" target="_blank" rel="noopener">
+          <div class="ch-glow" style="--cr:44,165,224"></div>
+          <div class="ch-num">01</div>
+          <div class="ch-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          </div>
+          <div class="ch-body">
+            <div class="ch-name">Telegram</div>
+            <div class="ch-handle">@MIMcoder</div>
+          </div>
+          <div class="ch-arrow">↗</div>
+        </a>
+
+        <!-- 02 YouTube -->
+        <a href="https://www.youtube.com/@MIM_coder" class="ch-card" target="_blank" rel="noopener">
+          <div class="ch-glow" style="--cr:255,0,0"></div>
+          <div class="ch-num">02</div>
+          <div class="ch-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </div>
+          <div class="ch-body">
+            <div class="ch-name">YouTube</div>
+            <div class="ch-handle">@MIM_coder</div>
+          </div>
+          <div class="ch-arrow">↗</div>
+        </a>
+
+        <!-- 03 GitHub — full-width banner -->
+        <a href="https://github.com/mrIsmoil" class="ch-card ch-banner" target="_blank" rel="noopener">
+          <div class="ch-glow" style="--cr:200,200,200"></div>
+          <div class="ch-num">03</div>
+          <div class="ch-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          </div>
+          <div class="ch-body">
+            <div class="ch-name">GitHub</div>
+            <div class="ch-handle">mrIsmoil</div>
+          </div>
+          <div class="ch-arrow">↗</div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section class="section contact" id="contact">
+    <div class="ct-bg-word">CONTACT</div>
+    <div class="container">
+
+      <div class="ct-header">
+        <span class="section-number">05</span>
+        <h2 class="section-title" data-i18n="contact_title">Contact</h2>
+      </div>
+
+      <div class="ct-grid">
+
+        <!-- Left: Info -->
+        <div class="ct-left">
+          <h3 class="ct-heading" data-i18n="contact_h3">Let's build something together.</h3>
+          <p class="ct-sub" data-i18n="contact_p">Have a project in mind? Want to collaborate? Or just want to say hi? My inbox is always open.</p>
+
+          <div class="ct-info-list">
+            <div class="ct-info-card">
+              <span class="ct-info-label" data-i18n="contact_loc_label">Location</span>
+              <span class="ct-info-val"   data-i18n="contact_loc_val">Kokand, Uzbekistan</span>
+            </div>
+            <div class="ct-info-card">
+              <span class="ct-info-label" data-i18n="contact_school_label">School</span>
+              <span class="ct-info-val">Target International School</span>
+            </div>
+            <div class="ct-info-card">
+              <span class="ct-info-label" data-i18n="contact_status_label">Status</span>
+              <span class="ct-info-val ct-status" data-i18n="contact_status_val">Available for projects</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Form -->
+        <form class="ct-form" id="contactForm">
+          <div class="ct-field">
+            <label data-i18n="form_name">Name</label>
+            <input type="text" id="name" name="name" data-i18n-placeholder="form_name_ph" placeholder="Your name" required />
+          </div>
+          <div class="ct-field">
+            <label data-i18n="form_email">Email</label>
+            <input type="email" id="email" name="email" placeholder="your@email.com" required />
+          </div>
+          <div class="ct-field">
+            <label data-i18n="form_message">Message</label>
+            <textarea id="message" name="message" data-i18n-placeholder="form_message_ph" placeholder="Tell me about your project..." rows="6" required></textarea>
+          </div>
+          <button type="submit" class="ct-btn" data-i18n="form_send">Send Message →</button>
+        </form>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="ft-bg-logo">MIM</div>
+    <div class="container">
+
+      <div class="ft-top">
+        <!-- Brand -->
+        <div class="ft-brand">
+          <span class="ft-logo">MIM</span>
+          <p class="ft-tagline">Muhammad Ismoil Muminkhujaev</p>
+        </div>
+
+        <!-- Links -->
+        <div class="ft-cols">
+          <div class="ft-col">
+            <span class="ft-col-label" data-i18n="footer_nav">Navigation</span>
+            <nav class="ft-nav">
+              <a href="#about"     data-i18n="nav_about">About</a>
+              <a href="#portfolio" data-i18n="nav_portfolio">Portfolio</a>
+              <a href="#skills"    data-i18n="nav_skills">Skills</a>
+              <a href="#channels"  data-i18n="nav_channels">Channels</a>
+              <a href="#contact"   data-i18n="nav_contact">Contact</a>
+            </nav>
+          </div>
+          <div class="ft-col">
+            <span class="ft-col-label" data-i18n="footer_social">Social</span>
+            <nav class="ft-nav">
+              <a href="https://t.me/MIMcoder"              target="_blank" rel="noopener">Telegram ↗</a>
+              <a href="https://www.youtube.com/@MIM_coder" target="_blank" rel="noopener">YouTube ↗</a>
+              <a href="https://github.com/mrIsmoil"        target="_blank" rel="noopener">GitHub ↗</a>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="ft-bottom">
+        <span data-i18n="footer_copy">© 2026 Muhammad Ismoil — MIM. All rights reserved.</span>
+        <span data-i18n="footer_made">Made with passion in Uzbekistan</span>
+      </div>
+
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
