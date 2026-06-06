@@ -628,28 +628,42 @@ function pfSnapTo(index) {
 }
 
 if (IS_MOBILE) {
-  // ── MOBILE: wrapper = 1 screen, swipe on stage element ──
+  // ── MOBILE: wrapper = N×innerHeight, touchmove prevention ──
   function setPfHeight() {
-    portfolioWrapper.style.height = window.innerHeight + 'px';
+    portfolioWrapper.style.height = (portfolioSlides.length * window.innerHeight) + 'px';
   }
   setPfHeight();
   window.addEventListener('resize', setPfHeight);
 
-  let pfTouchY = null;
-  portfolioStage.addEventListener('touchstart', e => {
-    pfTouchY = e.touches[0].clientY;
+  let _pfTY = null, _pfInZone = false;
+
+  window.addEventListener('touchstart', e => {
+    _pfTY = e.touches[0].clientY;
+    _pfInZone = inPortfolio();
   }, { passive: true });
-  portfolioStage.addEventListener('touchend', e => {
-    if (pfTouchY === null) return;
-    const diff = pfTouchY - e.changedTouches[0].clientY;
-    pfTouchY = null;
+
+  window.addEventListener('touchmove', e => {
+    if (!_pfInZone) return;
+    const diff = _pfTY - e.touches[0].clientY;
+    // Allow exit at first/last slide
+    if (diff < 0 && currentSlide === 0)                       { _pfInZone = false; return; }
+    if (diff > 0 && currentSlide === portfolioSlides.length-1){ _pfInZone = false; return; }
+    e.preventDefault(); // lock page scroll inside zone
+  }, { passive: false });
+
+  window.addEventListener('touchend', e => {
+    if (!_pfInZone || _pfTY === null) { _pfTY = null; _pfInZone = false; return; }
+    const diff = _pfTY - e.changedTouches[0].clientY;
+    _pfTY = null; _pfInZone = false;
     if (Math.abs(diff) < 45 || pfLocked) return;
     const max = portfolioSlides.length - 1;
     if (diff < 0 && currentSlide === 0)  return;
     if (diff > 0 && currentSlide === max) return;
     pfLocked = true;
-    goToSlide(diff > 0 ? currentSlide + 1 : currentSlide - 1);
-    setTimeout(() => { pfLocked = false; }, 700);
+    const next = diff > 0 ? currentSlide + 1 : currentSlide - 1;
+    goToSlide(next);
+    pfSnapTo(next);
+    setTimeout(() => { pfLocked = false; }, 800);
   }, { passive: true });
 
 } else {
@@ -682,9 +696,7 @@ if (IS_MOBILE) {
 portfolioDots.forEach((dot, i) => {
   dot.addEventListener('click', () => {
     goToSlide(i);
-    if (!IS_MOBILE) {
-      window.scrollTo({ top: pfWrapperTop() + i * window.innerHeight, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: pfWrapperTop() + i * window.innerHeight, behavior: IS_MOBILE ? 'instant' : 'smooth' });
   });
 });
 
@@ -880,28 +892,41 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
   if (!IS_MOBILE) updateArc(0);
 
   if (IS_MOBILE) {
-    // ── MOBILE: wrapper = 1 screen, swipe on stage ──
+    // ── MOBILE: wrapper = N×innerHeight, touchmove prevention ──
     function setSkHeight() {
-      skWrapper.style.height = window.innerHeight + 'px';
+      skWrapper.style.height = (SKILLS.length * window.innerHeight) + 'px';
     }
     setSkHeight();
     window.addEventListener('resize', setSkHeight);
 
-    let skTouchY = null;
-    skStage.addEventListener('touchstart', e => {
-      skTouchY = e.touches[0].clientY;
+    let _skTY = null, _skInZone = false;
+
+    window.addEventListener('touchstart', e => {
+      _skTY = e.touches[0].clientY;
+      _skInZone = inSkills();
     }, { passive: true });
-    skStage.addEventListener('touchend', e => {
-      if (skTouchY === null) return;
-      const diff = skTouchY - e.changedTouches[0].clientY;
-      skTouchY = null;
+
+    window.addEventListener('touchmove', e => {
+      if (!_skInZone) return;
+      const diff = _skTY - e.touches[0].clientY;
+      if (diff < 0 && skCurrent === 0)            { _skInZone = false; return; }
+      if (diff > 0 && skCurrent === SKILLS.length-1){ _skInZone = false; return; }
+      e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener('touchend', e => {
+      if (!_skInZone || _skTY === null) { _skTY = null; _skInZone = false; return; }
+      const diff = _skTY - e.changedTouches[0].clientY;
+      _skTY = null; _skInZone = false;
       if (Math.abs(diff) < 45 || skLocked) return;
       const max = SKILLS.length - 1;
       if (diff < 0 && skCurrent === 0)  return;
       if (diff > 0 && skCurrent === max) return;
       skLocked = true;
-      skGoTo(diff > 0 ? skCurrent + 1 : skCurrent - 1);
-      setTimeout(() => { skLocked = false; }, 700);
+      const next = diff > 0 ? skCurrent + 1 : skCurrent - 1;
+      skGoTo(next);
+      window.scrollTo({ top: skWrapTop() + next * window.innerHeight, behavior: 'instant' });
+      setTimeout(() => { skLocked = false; }, 800);
     }, { passive: true });
 
   } else {
