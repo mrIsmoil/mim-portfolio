@@ -2120,11 +2120,16 @@ ul { list-style: none; }
   .ss-mobile-dots { display: flex; }
   .ss-arc-wrap { display: none; }
 
-  /* KEY iOS Safari fix: tell browser not to handle these touches as scroll */
+  /* Mobile: override sticky — JS sets position:relative + height */
   .portfolio-stage,
   .skills-stage {
+    position: relative !important;
+    top: auto !important;
     touch-action: none;
-    -webkit-overflow-scrolling: auto;
+  }
+  .portfolio-scroll-wrapper,
+  .skills-scroll-wrapper {
+    height: auto !important;
   }
   .ss-section-label { left: 20px; top: calc(var(--nav-h) + 12px); }
   .ss-slides {

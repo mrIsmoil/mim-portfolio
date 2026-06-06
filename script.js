@@ -629,15 +629,20 @@ function pfSnapTo(index) {
 
 if (IS_MOBILE) {
   // ── MOBILE PORTFOLIO ──
-  // touch-action:none (CSS) stops iOS from treating swipe as page scroll.
-  // All navigation is manual: swipe on stage → change slide.
-  // Swiping past first/last slide → programmatic scroll to exit.
+  // On iOS sticky+scroll = unreliable. Solution:
+  // wrapper = 1 screen, stage = position:relative (no sticky).
+  // Page scrolls normally. Slides change via swipe on the stage.
+  const ih = window.innerHeight;
+  portfolioWrapper.style.height    = ih + 'px';
+  portfolioStage.style.position    = 'relative';
+  portfolioStage.style.top         = 'auto';
+  portfolioStage.style.height      = ih + 'px';
 
-  function setPfHeight() {
-    portfolioWrapper.style.height = (portfolioSlides.length * window.innerHeight) + 'px';
-  }
-  setPfHeight();
-  window.addEventListener('resize', setPfHeight, { passive: true });
+  window.addEventListener('resize', () => {
+    const nih = window.innerHeight;
+    portfolioWrapper.style.height = nih + 'px';
+    portfolioStage.style.height   = nih + 'px';
+  }, { passive: true });
 
   let _pfTY = null;
 
@@ -645,35 +650,21 @@ if (IS_MOBILE) {
     _pfTY = e.touches[0].clientY;
   }, { passive: true });
 
-  // prevent ALL page scroll while finger is on the stage
   portfolioStage.addEventListener('touchmove', e => {
-    e.preventDefault();
+    e.preventDefault(); // block page scroll while on stage
   }, { passive: false });
 
   portfolioStage.addEventListener('touchend', e => {
     if (_pfTY === null) return;
     const diff = _pfTY - e.changedTouches[0].clientY;
     _pfTY = null;
-    if (Math.abs(diff) < 40) return;
-
+    if (Math.abs(diff) < 35 || pfLocked) return;
     const max = portfolioSlides.length - 1;
-
-    if (diff < 0 && currentSlide === 0) {
-      // swipe ↓ at first slide → scroll up out of portfolio
-      window.scrollTo({ top: Math.max(0, pfWrapperTop() - window.innerHeight), behavior: 'smooth' });
-      return;
-    }
-    if (diff > 0 && currentSlide === max) {
-      // swipe ↑ at last slide → scroll down out of portfolio
-      window.scrollTo({ top: pfWrapperTop() + portfolioWrapper.offsetHeight, behavior: 'smooth' });
-      return;
-    }
-    if (pfLocked) return;
+    if (diff < 0 && currentSlide === 0)  return;
+    if (diff > 0 && currentSlide === max) return;
     pfLocked = true;
-    const next = diff > 0 ? currentSlide + 1 : currentSlide - 1;
-    goToSlide(next);
-    pfSnapTo(next);
-    setTimeout(() => { pfLocked = false; }, 700);
+    goToSlide(diff > 0 ? currentSlide + 1 : currentSlide - 1);
+    setTimeout(() => { pfLocked = false; }, 650);
   }, { passive: true });
 
 } else {
@@ -903,11 +894,17 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
 
   if (IS_MOBILE) {
     // ── MOBILE SKILLS ── same pattern as portfolio
-    function setSkHeight() {
-      skWrapper.style.height = (SKILLS.length * window.innerHeight) + 'px';
-    }
-    setSkHeight();
-    window.addEventListener('resize', setSkHeight, { passive: true });
+    const sih = window.innerHeight;
+    skWrapper.style.height  = sih + 'px';
+    skStage.style.position  = 'relative';
+    skStage.style.top       = 'auto';
+    skStage.style.height    = sih + 'px';
+
+    window.addEventListener('resize', () => {
+      const nih = window.innerHeight;
+      skWrapper.style.height = nih + 'px';
+      skStage.style.height   = nih + 'px';
+    }, { passive: true });
 
     let _skTY = null;
 
@@ -923,24 +920,13 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
       if (_skTY === null) return;
       const diff = _skTY - e.changedTouches[0].clientY;
       _skTY = null;
-      if (Math.abs(diff) < 40) return;
-
+      if (Math.abs(diff) < 35 || skLocked) return;
       const max = SKILLS.length - 1;
-
-      if (diff < 0 && skCurrent === 0) {
-        window.scrollTo({ top: Math.max(0, skWrapTop() - window.innerHeight), behavior: 'smooth' });
-        return;
-      }
-      if (diff > 0 && skCurrent === max) {
-        window.scrollTo({ top: skWrapTop() + skWrapper.offsetHeight, behavior: 'smooth' });
-        return;
-      }
-      if (skLocked) return;
+      if (diff < 0 && skCurrent === 0)  return;
+      if (diff > 0 && skCurrent === max) return;
       skLocked = true;
-      const next = diff > 0 ? skCurrent + 1 : skCurrent - 1;
-      skGoTo(next);
-      window.scrollTo({ top: skWrapTop() + next * window.innerHeight, behavior: 'instant' });
-      setTimeout(() => { skLocked = false; }, 700);
+      skGoTo(diff > 0 ? skCurrent + 1 : skCurrent - 1);
+      setTimeout(() => { skLocked = false; }, 650);
     }, { passive: true });
 
   } else {
