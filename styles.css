@@ -2119,7 +2119,13 @@ ul { list-style: none; }
   /* Skills — mobile: wrapper height set by JS, hide arc */
   .ss-mobile-dots { display: flex; }
   .ss-arc-wrap { display: none; }
-  /* portfolio wrapper height also set by JS on mobile */
+
+  /* KEY iOS Safari fix: tell browser not to handle these touches as scroll */
+  .portfolio-stage,
+  .skills-stage {
+    touch-action: none;
+    -webkit-overflow-scrolling: auto;
+  }
   .ss-section-label { left: 20px; top: calc(var(--nav-h) + 12px); }
   .ss-slides {
     right: auto;
