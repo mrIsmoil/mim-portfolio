@@ -1023,10 +1023,11 @@ ul { list-style: none; }
 /* Tonsor project frame — dark theme override (higher specificity than .featured rule) */
 .portfolio-slide.featured .ps-img-frame.tonsor-frame {
   background: #0a0a0a !important;
-  border-color: rgba(220,50,50,0.25);
+  border-color: rgba(123,155,92,0.55);
   box-shadow:
-    0 40px 100px rgba(220,50,50,0.12),
-    inset 0 1px 0 rgba(255,255,255,0.1),
+    0 40px 100px rgba(123,155,92,0.22),
+    0 0 0 1px rgba(123,155,92,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.08),
     inset 0 -1px 0 rgba(0,0,0,0.4);
 }
 .ps-tonsor-preview {
@@ -1073,11 +1074,12 @@ ul { list-style: none; }
 .ps-tonsor-btn {
   margin-top: 6px;
   padding: 8px 22px;
-  border: 1px solid rgba(220,50,50,0.7);
+  border: 1px solid rgba(123,155,92,0.85);
   border-radius: 999px;
   font-size: 0.62rem;
   letter-spacing: 0.18em;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.85);
+  box-shadow: 0 0 12px rgba(123,155,92,0.2);
 }
 
 /* Tonsor — info text should stay white (not dark like other featured slides) */
@@ -2114,9 +2116,10 @@ ul { list-style: none; }
   .ps-links { gap: 8px; flex-wrap: wrap; }
   .ps-link  { padding: 8px 18px; font-size: 0.82rem; }
 
-  /* Skills — mobile: hide arc, center slide, show dots */
+  /* Skills — mobile: wrapper height set by JS, hide arc */
   .ss-mobile-dots { display: flex; }
   .ss-arc-wrap { display: none; }
+  /* portfolio wrapper height also set by JS on mobile */
   .ss-section-label { left: 20px; top: calc(var(--nav-h) + 12px); }
   .ss-slides {
     right: auto;

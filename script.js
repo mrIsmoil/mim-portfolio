@@ -601,26 +601,19 @@ const portfolioWrapper = document.getElementById('portfolioWrapper');
 const portfolioStage   = document.getElementById('portfolioStage');
 const portfolioSlides  = document.querySelectorAll('.portfolio-slide');
 const portfolioDots    = document.querySelectorAll('.pdot');
-let currentSlide  = 0;
-let pfLocked      = false;
-let pfWasInside   = false;
+let currentSlide = 0;
+let pfLocked     = false;
+let pfWasInside  = false;
 
 function pfWrapperTop() {
   return portfolioWrapper.getBoundingClientRect().top + window.scrollY;
 }
-
-// True only when the sticky stage fully covers the viewport
 function inPortfolio() {
-  if (!portfolioStage) return false;
-  const r = portfolioStage.getBoundingClientRect();
-  return r.top <= 2 && r.bottom >= window.innerHeight - 2;
+  const top = pfWrapperTop();
+  const y   = window.scrollY;
+  const ih  = window.innerHeight;
+  return y + 4 >= top && y + ih - 4 <= top + portfolioWrapper.offsetHeight;
 }
-
-// Reset pfWasInside when leaving portfolio zone
-window.addEventListener('scroll', () => {
-  if (!inPortfolio()) pfWasInside = false;
-}, { passive: true });
-
 function goToSlide(index) {
   if (index === currentSlide) return;
   portfolioSlides[currentSlide].classList.remove('active');
@@ -630,60 +623,68 @@ function goToSlide(index) {
   portfolioDots.forEach((d, i) => d.classList.toggle('active', i === index));
   currentSlide = index;
 }
-
 function pfSnapTo(index) {
-  // Sync scroll position instantly — visual transition is CSS-driven
   window.scrollTo({ top: pfWrapperTop() + index * window.innerHeight, behavior: 'instant' });
 }
 
-// Wheel: one slide at a time, 1 s lock
-window.addEventListener('wheel', (e) => {
-  if (!inPortfolio()) return;
-
-  // First wheel event inside portfolio zone → lock to absorb incoming momentum
-  if (!pfWasInside) {
-    pfWasInside = true;
-    pfLocked = true;
-    e.preventDefault();
-    setTimeout(() => { pfLocked = false; }, 600);
-    return;
+if (IS_MOBILE) {
+  // ── MOBILE: wrapper = 1 screen, swipe on stage element ──
+  function setPfHeight() {
+    portfolioWrapper.style.height = window.innerHeight + 'px';
   }
+  setPfHeight();
+  window.addEventListener('resize', setPfHeight);
 
-  const max = portfolioSlides.length - 1;
-  if (e.deltaY < 0 && currentSlide === 0)   return; // exit top
-  if (e.deltaY > 0 && currentSlide === max)  return; // exit bottom
-  e.preventDefault();
-  if (pfLocked) return;
-  pfLocked = true;
-  const next = e.deltaY > 0 ? currentSlide + 1 : currentSlide - 1;
-  goToSlide(next);
-  pfSnapTo(next);
-  setTimeout(() => { pfLocked = false; }, 1000);
-}, { passive: false });
+  let pfTouchY = null;
+  portfolioStage.addEventListener('touchstart', e => {
+    pfTouchY = e.touches[0].clientY;
+  }, { passive: true });
+  portfolioStage.addEventListener('touchend', e => {
+    if (pfTouchY === null) return;
+    const diff = pfTouchY - e.changedTouches[0].clientY;
+    pfTouchY = null;
+    if (Math.abs(diff) < 45 || pfLocked) return;
+    const max = portfolioSlides.length - 1;
+    if (diff < 0 && currentSlide === 0)  return;
+    if (diff > 0 && currentSlide === max) return;
+    pfLocked = true;
+    goToSlide(diff > 0 ? currentSlide + 1 : currentSlide - 1);
+    setTimeout(() => { pfLocked = false; }, 700);
+  }, { passive: true });
 
-// Touch swipe: same logic
-let pfTouchY = null;
-window.addEventListener('touchstart', (e) => { pfTouchY = e.touches[0].clientY; }, { passive: true });
-window.addEventListener('touchend', (e) => {
-  if (pfTouchY === null) return;
-  const diff = pfTouchY - e.changedTouches[0].clientY;
-  pfTouchY = null;
-  if (!inPortfolio() || Math.abs(diff) < 40 || pfLocked) return;
-  const max = portfolioSlides.length - 1;
-  if (diff < 0 && currentSlide === 0)   return;
-  if (diff > 0 && currentSlide === max)  return;
-  pfLocked = true;
-  const next = diff > 0 ? currentSlide + 1 : currentSlide - 1;
-  goToSlide(next);
-  pfSnapTo(next);
-  setTimeout(() => { pfLocked = false; }, 1000);
-}, { passive: true });
+} else {
+  // ── DESKTOP: sticky scroll-lock with wheel ──
+  window.addEventListener('scroll', () => {
+    if (!inPortfolio()) pfWasInside = false;
+  }, { passive: true });
 
-// Dot clicks: smooth scroll to target, no lock needed
+  window.addEventListener('wheel', (e) => {
+    if (!inPortfolio()) return;
+    if (!pfWasInside) {
+      pfWasInside = true; pfLocked = true; e.preventDefault();
+      setTimeout(() => { pfLocked = false; }, 600);
+      return;
+    }
+    const max = portfolioSlides.length - 1;
+    if (e.deltaY < 0 && currentSlide === 0)  return;
+    if (e.deltaY > 0 && currentSlide === max) return;
+    e.preventDefault();
+    if (pfLocked) return;
+    pfLocked = true;
+    const next = e.deltaY > 0 ? currentSlide + 1 : currentSlide - 1;
+    goToSlide(next);
+    pfSnapTo(next);
+    setTimeout(() => { pfLocked = false; }, 1000);
+  }, { passive: false });
+}
+
+// Dot clicks
 portfolioDots.forEach((dot, i) => {
   dot.addEventListener('click', () => {
     goToSlide(i);
-    window.scrollTo({ top: pfWrapperTop() + i * window.innerHeight, behavior: 'smooth' });
+    if (!IS_MOBILE) {
+      window.scrollTo({ top: pfWrapperTop() + i * window.innerHeight, behavior: 'smooth' });
+    }
   });
 });
 
@@ -851,16 +852,18 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
 
   // ── Slide switching ──
   const skSlides = skSlidesEl.querySelectorAll('.ss-slide');
-  let skCurrent  = 0;
-  let skLocked   = false;
-  let skWasIn    = false;
+  let skCurrent = 0;
+  let skLocked  = false;
+  let skWasIn   = false;
 
   function skWrapTop() {
     return skWrapper.getBoundingClientRect().top + window.scrollY;
   }
   function inSkills() {
-    const r = skStage.getBoundingClientRect();
-    return r.top <= 2 && r.bottom >= window.innerHeight - 2;
+    const top = skWrapTop();
+    const y   = window.scrollY;
+    const ih  = window.innerHeight;
+    return y + 4 >= top && y + ih - 4 <= top + skWrapper.offsetHeight;
   }
   function skGoTo(idx) {
     if (idx === skCurrent) return;
@@ -869,57 +872,63 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
     skSlides[idx].classList.remove('exited');
     skSlides[idx].classList.add('active');
     skCurrent = idx;
-    updateArc(idx);
-    // sync mobile dots
+    if (!IS_MOBILE) updateArc(idx);
     skStage.querySelectorAll('.ss-mdot').forEach((d, i) =>
       d.classList.toggle('active', i === idx));
   }
 
-  // Init arc
-  updateArc(0);
+  if (!IS_MOBILE) updateArc(0);
 
-  // Reset entry flag on scroll out
-  window.addEventListener('scroll', () => {
-    if (!inSkills()) skWasIn = false;
-  }, { passive: true });
-
-  // Wheel handler
-  window.addEventListener('wheel', (e) => {
-    if (!inSkills()) return;
-    if (!skWasIn) {
-      skWasIn = true; skLocked = true; e.preventDefault();
-      setTimeout(() => { skLocked = false; }, 600);
-      return;
+  if (IS_MOBILE) {
+    // ── MOBILE: wrapper = 1 screen, swipe on stage ──
+    function setSkHeight() {
+      skWrapper.style.height = window.innerHeight + 'px';
     }
-    const max = SKILLS.length - 1;
-    if (e.deltaY < 0 && skCurrent === 0)   return;
-    if (e.deltaY > 0 && skCurrent === max)  return;
-    e.preventDefault();
-    if (skLocked) return;
-    skLocked = true;
-    const next = e.deltaY > 0 ? skCurrent + 1 : skCurrent - 1;
-    skGoTo(next);
-    window.scrollTo({ top: skWrapTop() + next * window.innerHeight, behavior: 'instant' });
-    setTimeout(() => { skLocked = false; }, 1000);
-  }, { passive: false });
+    setSkHeight();
+    window.addEventListener('resize', setSkHeight);
 
-  // Touch
-  let skTY = null;
-  window.addEventListener('touchstart', (e) => { skTY = e.touches[0].clientY; }, { passive: true });
-  window.addEventListener('touchend', (e) => {
-    if (skTY === null) return;
-    const diff = skTY - e.changedTouches[0].clientY;
-    skTY = null;
-    if (!inSkills() || Math.abs(diff) < 40 || skLocked) return;
-    const max = SKILLS.length - 1;
-    if (diff < 0 && skCurrent === 0)  return;
-    if (diff > 0 && skCurrent === max) return;
-    skLocked = true;
-    const next = diff > 0 ? skCurrent + 1 : skCurrent - 1;
-    skGoTo(next);
-    window.scrollTo({ top: skWrapTop() + next * window.innerHeight, behavior: 'instant' });
-    setTimeout(() => { skLocked = false; }, 1000);
-  }, { passive: true });
+    let skTouchY = null;
+    skStage.addEventListener('touchstart', e => {
+      skTouchY = e.touches[0].clientY;
+    }, { passive: true });
+    skStage.addEventListener('touchend', e => {
+      if (skTouchY === null) return;
+      const diff = skTouchY - e.changedTouches[0].clientY;
+      skTouchY = null;
+      if (Math.abs(diff) < 45 || skLocked) return;
+      const max = SKILLS.length - 1;
+      if (diff < 0 && skCurrent === 0)  return;
+      if (diff > 0 && skCurrent === max) return;
+      skLocked = true;
+      skGoTo(diff > 0 ? skCurrent + 1 : skCurrent - 1);
+      setTimeout(() => { skLocked = false; }, 700);
+    }, { passive: true });
+
+  } else {
+    // ── DESKTOP: sticky scroll-lock with wheel ──
+    window.addEventListener('scroll', () => {
+      if (!inSkills()) skWasIn = false;
+    }, { passive: true });
+
+    window.addEventListener('wheel', (e) => {
+      if (!inSkills()) return;
+      if (!skWasIn) {
+        skWasIn = true; skLocked = true; e.preventDefault();
+        setTimeout(() => { skLocked = false; }, 600);
+        return;
+      }
+      const max = SKILLS.length - 1;
+      if (e.deltaY < 0 && skCurrent === 0)  return;
+      if (e.deltaY > 0 && skCurrent === max) return;
+      e.preventDefault();
+      if (skLocked) return;
+      skLocked = true;
+      const next = e.deltaY > 0 ? skCurrent + 1 : skCurrent - 1;
+      skGoTo(next);
+      window.scrollTo({ top: skWrapTop() + next * window.innerHeight, behavior: 'instant' });
+      setTimeout(() => { skLocked = false; }, 1000);
+    }, { passive: false });
+  }
 
   // Re-render on language change
   const _origApplyLang = applyLang;
