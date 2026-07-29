@@ -12,8 +12,12 @@
   --gray-800: #1a1a1a;
   --gray-900: #0d0d0d;
   --accent: #ffffff;
-  --font-sans: 'Surgena Personal use only', 'Space Grotesk', sans-serif;
-  --font-mono: 'Surgena Personal use only', 'Space Mono', monospace;
+  /* Surgena ships a SINGLE weight (600). Anything heavier used to be faked by the
+     browser, which smears the glyphs badly at display sizes — that was the
+     "stretched font" bug. font-synthesis:none below kills the fake bold, and
+     Space Grotesk (real 400–700) is the fallback when Surgena fails to load. */
+  --font-sans: 'Surgena Personal use only', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --nav-h: 72px;
   --transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-fast: 0.2s ease;
@@ -22,17 +26,31 @@
 /* ─── Reset ─── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; font-size: 16px; }
+
 body {
+  /* Clips the ghost watermark bleed. Must stay on <body>, never on <html>:
+     `overflow` on the root propagates to the viewport, and `clip` there stops
+     the page scrolling altogether. `hidden` on <body> also propagates, but
+     only on the x axis — the y axis keeps scrolling and, because <body> is
+     therefore not itself a scroll container, position:sticky still works. */
+  overflow-x: hidden;
   font-family: var(--font-sans);
   background: var(--black);
   color: var(--white);
-  overflow-x: hidden;
   cursor: none;
+  font-synthesis: none;
+  -webkit-font-synthesis: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: none; border: none; background: none; }
 img { max-width: 100%; display: block; }
 ul { list-style: none; }
+
+/* <picture> only exists to offer a WebP source — it must not become the flex
+   item itself, or it would break the hero/nav layout that sizes the <img>. */
+picture { display: contents; }
 
 /* ─── Custom Cursor ─── */
 .cursor {
@@ -44,7 +62,8 @@ ul { list-style: none; }
   pointer-events: none;
   z-index: 9999;
   transform: translate(-50%, -50%);
-  transition: transform 0.1s, width 0.3s, height 0.3s, background 0.3s;
+  /* transform is driven per-frame by JS now — transitioning it would add lag */
+  transition: width 0.3s, height 0.3s, background 0.3s;
   mix-blend-mode: difference;
 }
 .cursor-follower {
@@ -56,11 +75,44 @@ ul { list-style: none; }
   pointer-events: none;
   z-index: 9998;
   transform: translate(-50%, -50%);
-  transition: transform 0.15s ease, width 0.3s, height 0.3s, opacity 0.3s;
+  transition: width 0.3s, height 0.3s, opacity 0.3s;
   mix-blend-mode: difference;
 }
 .cursor.hovering { width: 16px; height: 16px; }
 .cursor-follower.hovering { width: 28px; height: 28px; opacity: 0.5; }
+
+/* Any device without a real hovering pointer (phones, tablets, touch laptops in
+   touch mode) gets the native cursor back. Keyed on the pointer itself rather
+   than on viewport width, so a 15" touchscreen laptop is handled correctly. */
+@media (hover: none), (pointer: coarse) {
+  body, button, .pdot, .ss-arc-num, .ct-btn { cursor: auto; }
+  button, .pdot, .ss-arc-num, .ct-btn { cursor: pointer; }
+  .cursor, .cursor-follower { display: none !important; }
+}
+
+/* ─── Keyboard focus ─── */
+:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.85);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.ct-field input:focus-visible,
+.ct-field textarea:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.7);
+  outline-offset: 1px;
+}
+
+/* Skip motion for people who ask the OS for it. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  #bgCanvas { display: none; }
+}
 
 
 /* ─── Background Canvas ─── */
@@ -403,6 +455,9 @@ ul { list-style: none; }
 .btn-full { width: 100%; justify-content: center; }
 
 /* ─── Section ─── */
+/* Anchor jumps land below the fixed navbar instead of underneath it. */
+section[id] { scroll-margin-top: var(--nav-h); }
+
 .section {
   padding: 120px 0;
   position: relative;
@@ -445,6 +500,7 @@ ul { list-style: none; }
 .hero {
   position: relative;
   height: 100vh;
+  height: 100svh;  /* mobile: never hidden behind the browser toolbar */
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -475,6 +531,7 @@ ul { list-style: none; }
 }
 .hero-photo {
   height: 96vh;
+  height: 96svh;
   width: auto;
   object-fit: contain;
   object-position: bottom center;
@@ -796,6 +853,8 @@ ul { list-style: none; }
 /* portfolio padding override for full-page stage */
 .portfolio { padding: 0; }
 /* ─── Portfolio: full-page scroll stage ─── */
+/* Wrapper height is set by JS (slides × viewport). This value is only the
+   pre-JS fallback so the page never collapses if scripts are blocked. */
 .portfolio-scroll-wrapper {
   position: relative;
   height: calc(4 * 100vh);
@@ -804,8 +863,14 @@ ul { list-style: none; }
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100svh;
   width: 100%;
   overflow: hidden;
+}
+/* Desktop: transparent to layout — slides stay absolutely positioned inside it. */
+.ps-track {
+  position: absolute;
+  inset: 0;
 }
 .ps-section-label {
   position: absolute;
@@ -856,15 +921,24 @@ ul { list-style: none; }
   gap: 64px;
   opacity: 0;
   transform: translateY(48px) scale(0.985);
+  /* visibility (not just opacity) so hidden slides drop out of the tab order
+     and out of the accessibility tree once they have faded away. */
+  visibility: hidden;
   transition:
     opacity 0.75s cubic-bezier(0.16,1,0.3,1),
-    transform 0.75s cubic-bezier(0.16,1,0.3,1);
+    transform 0.75s cubic-bezier(0.16,1,0.3,1),
+    visibility 0s linear 0.75s;
   pointer-events: none;
 }
 .portfolio-slide.active {
   opacity: 1;
   transform: translateY(0) scale(1);
+  visibility: visible;
   pointer-events: all;
+  transition:
+    opacity 0.75s cubic-bezier(0.16,1,0.3,1),
+    transform 0.75s cubic-bezier(0.16,1,0.3,1),
+    visibility 0s;
 }
 .portfolio-slide.exited {
   opacity: 0;
@@ -1350,7 +1424,7 @@ ul { list-style: none; }
 
 .skills-scroll-wrapper {
   position: relative;
-  /* height set by JS based on skill count */
+  /* height set by JS based on skill count — this is the no-JS fallback */
   height: calc(9 * 100vh);
 }
 
@@ -1358,6 +1432,7 @@ ul { list-style: none; }
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100svh;
   width: 100%;
   overflow: hidden;
 }
@@ -1445,15 +1520,22 @@ ul { list-style: none; }
   gap: 18px;
   opacity: 0;
   transform: translateY(38px);
+  visibility: hidden;
   transition:
     opacity   0.7s cubic-bezier(0.16,1,0.3,1),
-    transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    transform 0.7s cubic-bezier(0.16,1,0.3,1),
+    visibility 0s linear 0.7s;
   pointer-events: none;
 }
 .ss-slide.active {
   opacity: 1;
   transform: translateY(0);
+  visibility: visible;
   pointer-events: all;
+  transition:
+    opacity   0.7s cubic-bezier(0.16,1,0.3,1),
+    transform 0.7s cubic-bezier(0.16,1,0.3,1),
+    visibility 0s;
 }
 .ss-slide.exited {
   opacity: 0;
@@ -1511,17 +1593,8 @@ ul { list-style: none; }
   max-width: 420px;
 }
 
-/* ── Mobile ── */
-@media (max-width: 768px) {
-  .ss-section-label { left: 20px; top: calc(var(--nav-h) + 16px); }
-  .ss-arc-wrap { width: 200px; }
-  .ss-slides {
-    right: 4%;
-    width: 54%;
-    max-width: none;
-  }
-  .ss-name { font-size: clamp(1.8rem, 7vw, 2.8rem); }
-}
+/* Mobile skills layout lives with the rest of the mobile rules further down,
+   next to the portfolio carousel it shares its behaviour with. */
 
 /* ─── Channels Redesign ─── */
 .channels {
@@ -1715,6 +1788,9 @@ ul { list-style: none; }
   color: rgba(255,255,255,0.018);
   bottom: -4%;
   right: -1%;
+  /* Without nowrap this wrapped onto two lines on phones and read as a
+     broken block of text rather than a watermark. */
+  white-space: nowrap;
   pointer-events: none;
   letter-spacing: -0.05em;
   z-index: 0;
@@ -1807,6 +1883,20 @@ ul { list-style: none; }
   text-transform: uppercase;
   font-family: var(--font-mono);
   color: rgba(255,255,255,0.28);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* "optional" tag next to a field label */
+.ct-opt {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.22);
+  text-transform: lowercase;
 }
 
 .ct-field input,
@@ -1848,11 +1938,71 @@ ul { list-style: none; }
   width: 100%;
   transition: background 0.3s, transform 0.45s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s;
 }
-.ct-btn:hover {
+.ct-btn:hover:not(:disabled) {
   background: var(--white);
   transform: translateY(-3px);
   box-shadow: 0 14px 40px rgba(255,255,255,0.12);
 }
+.ct-btn:disabled { opacity: 0.65; transform: none; box-shadow: none; }
+.ct-btn.is-ok    { background: rgba(74,222,128,0.16); color: #4ade80; }
+.ct-btn.is-error { background: rgba(255,80,80,0.14);  color: #ff8a8a; }
+
+/* Honeypot — off-screen for humans, still fillable by naive bots. */
+.ct-hp {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Field-level validation */
+.ct-field input.invalid,
+.ct-field textarea.invalid {
+  border-color: rgba(255,90,90,0.55);
+  background: rgba(255,60,60,0.05);
+}
+.ct-field-error {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: #ff8a8a;
+  letter-spacing: 0.04em;
+  min-height: 0;
+}
+
+/* Status line + fallback route */
+.ct-status-msg {
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+  min-height: 1.2em;
+  color: rgba(255,255,255,0.45);
+}
+.ct-status-msg.ok    { color: #4ade80; }
+.ct-status-msg.error { color: #ff8a8a; }
+
+.ct-fallback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.5);
+}
+.ct-fallback[hidden] { display: none; }
+.ct-fallback a {
+  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+  transition: border-color 0.25s, color 0.25s;
+}
+.ct-fallback a:hover { color: #fff; border-bottom-color: #fff; }
 
 /* ─── Footer Redesign ─── */
 .footer {
@@ -1884,6 +2034,7 @@ ul { list-style: none; }
   color: rgba(255,255,255,0.025);
   bottom: -12%;
   right: -1%;
+  white-space: nowrap;
   pointer-events: none;
   letter-spacing: -0.05em;
   z-index: 0;
@@ -2116,35 +2267,100 @@ ul { list-style: none; }
   .ps-links { gap: 8px; flex-wrap: wrap; }
   .ps-link  { padding: 8px 18px; font-size: 0.82rem; }
 
-  /* Skills — mobile: wrapper height set by JS, hide arc */
+  /* ════════════════════════════════════════════════════════════════
+     MOBILE PORTFOLIO + SKILLS — native horizontal scroll-snap carousels.
+
+     The old build blocked touchmove and set touch-action:none on a
+     full-screen stage, so a finger anywhere on the section could not scroll
+     the page — visitors got stuck on the last slide with no way down. Here
+     each section is exactly one screen tall and the slides live in a real
+     horizontal scroller: the browser routes vertical swipes to the page and
+     horizontal swipes to the carousel. Nothing is preventDefault-ed, so
+     scrolling can never trap the user.
+     ════════════════════════════════════════════════════════════════ */
   .ss-mobile-dots { display: flex; }
   .ss-arc-wrap { display: none; }
 
-  /* Mobile: override sticky — JS sets position:relative + height */
-  .portfolio-stage,
-  .skills-stage {
-    position: relative !important;
-    top: auto !important;
-    touch-action: none;
-  }
   .portfolio-scroll-wrapper,
   .skills-scroll-wrapper {
-    height: auto !important;
+    height: 100vh;
+    height: 100svh;
   }
-  .ss-section-label { left: 20px; top: calc(var(--nav-h) + 12px); }
+  .portfolio-stage,
+  .skills-stage {
+    position: relative;
+    top: auto;
+    height: 100vh;
+    height: 100svh;
+    touch-action: auto;
+  }
+
+  /* ── The scrollers ── */
+  .ps-track,
   .ss-slides {
-    right: auto;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 88%;
-    max-width: none;
-    min-height: 320px;
-    text-align: center;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;   /* no accidental browser back-swipe */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .ps-track::-webkit-scrollbar,
+  .ss-slides::-webkit-scrollbar { display: none; }
+
+  .ss-slides {
+    position: absolute;
+    left: 0; right: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    max-width: none;
+    min-height: 340px;
+  }
+
+  /* ── Slides become carousel cells ── */
+  .portfolio-slide,
+  .ss-slide {
+    position: relative;
+    inset: auto;
+    flex: 0 0 100%;
+    width: 100%;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    /* the carousel supplies the motion — no cross-fade needed here */
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    transition: none;
+  }
+  .portfolio-slide.exited,
+  .ss-slide.exited { opacity: 1; transform: none; visibility: visible; }
+
   .ss-slide {
     align-items: center;
     justify-content: center;
+    text-align: center;
+    padding: 0 24px;
   }
+  /* Fill every bar: neighbouring cells are partly visible mid-swipe. */
+  .ss-slide .ss-fill { width: var(--w); }
+
+  /* ── Dots move to the bottom, horizontal ── */
+  .portfolio-dots {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: 22px;
+    transform: translateX(-50%);
+    flex-direction: row;
+    gap: 8px;
+  }
+  .pdot.active { height: 6px; width: 20px; }
+
+  .ss-section-label { left: 20px; top: calc(var(--nav-h) + 12px); }
   .ss-cat  { text-align: center; }
   .ss-name { font-size: clamp(2rem, 9vw, 3rem); }
   .ss-bar-row { width: 100%; }
@@ -2191,8 +2407,10 @@ ul { list-style: none; }
   .ps-title   { font-size: 1.5rem; }
   .portfolio-slide { padding: calc(var(--nav-h) + 48px) 16px 24px; }
 
-  /* Skills */
-  .ss-slides { width: 92%; }
+  /* Skills — the track must stay exactly one viewport wide so scroll-snap
+     lands each cell flush; inner spacing comes from .ss-slide padding. */
+  .ss-slides { width: 100%; }
+  .ss-slide  { padding: 0 18px; }
   .ss-name   { font-size: clamp(1.8rem, 8vw, 2.6rem); }
 
   /* Channels */
@@ -2219,7 +2437,7 @@ ul { list-style: none; }
   .ps-img-frame { aspect-ratio: 4/3; }
   .ps-info { flex: 1; gap: 8px; }
   .ps-desc { display: none; }
-  .ss-slides { width: 70%; }
+  .ss-slides { width: 100%; }
 }
 
 /* ─── Page load animation ─── */

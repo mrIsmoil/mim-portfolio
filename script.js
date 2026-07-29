@@ -2,425 +2,474 @@
    MIM — Muhammad Ismoil | Portfolio Scripts
    ============================================ */
 
-// ─── Custom Cursor ───
+'use strict';
+
+/* ─── Shared helpers ─── */
+
+// Viewport breakpoint. Deliberately width-only: the old build also treated
+// `'ontouchstart' in window` as "mobile", which is true on touchscreen laptops,
+// Windows tablets and Chromebooks — those machines got the swipe-only code path
+// and lost every scroll animation. Width is the honest signal, and the
+// `change` listener below means resizing or rotating re-configures live.
+const mqMobile  = window.matchMedia('(max-width: 768px)');
+const mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+const mqCoarse  = window.matchMedia('(hover: none), (pointer: coarse)');
+
+let isMobile = mqMobile.matches;
+
+// Collects everything that needs to know about a breakpoint flip.
+const breakpointHandlers = [];
+function onBreakpointChange(fn) { breakpointHandlers.push(fn); }
+
+function syncBreakpoint() {
+  if (mqMobile.matches === isMobile) return;
+  isMobile = mqMobile.matches;
+  breakpointHandlers.forEach(fn => fn(isMobile));
+}
+mqMobile.addEventListener('change', syncBreakpoint);
+
+// Coalesces bursts of scroll/resize events into one job per animation frame.
+function rafThrottle(fn) {
+  let queued = false;
+  return function throttled() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; fn(); });
+  };
+}
+
+function debounce(fn, ms) {
+  let t;
+  return function debounced(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// Belt and braces: a couple of environments (older WebViews, some embedded
+// browsers) resize the layout viewport without firing the matchMedia `change`
+// event. syncBreakpoint() is idempotent, so re-checking on resize costs nothing
+// and guarantees the layout mode always matches the actual width.
+window.addEventListener('resize', () => syncBreakpoint(), { passive: true });
+window.addEventListener('orientationchange', () => syncBreakpoint(), { passive: true });
+
+// One rAF-throttled scroll pass drives every scroll-reactive feature, instead of
+// each feature registering its own listener.
+const scrollSubscribers = [];
+function onScroll(fn) { scrollSubscribers.push(fn); }
+const runScrollSubscribers = rafThrottle(() => {
+  for (const fn of scrollSubscribers) fn();
+});
+window.addEventListener('scroll', runScrollSubscribers, { passive: true });
+
+
+/* ─── Custom Cursor ─── */
+// Skipped entirely on touch/coarse-pointer devices: no mouse, no cursor to draw.
 const cursor = document.getElementById('cursor');
 const cursorFollower = document.getElementById('cursorFollower');
-let mouseX = 0, mouseY = 0;
-let followerX = 0, followerY = 0;
 
-document.addEventListener('mousemove', e => {
-  mouseX = e.clientX;
-  mouseY = e.clientY;
-  cursor.style.left = mouseX + 'px';
-  cursor.style.top  = mouseY + 'px';
-});
+if (cursor && cursorFollower && !mqCoarse.matches) {
+  let mouseX = 0, mouseY = 0;
+  let followerX = 0, followerY = 0;
 
-function animateFollower() {
-  followerX += (mouseX - followerX) * 0.12;
-  followerY += (mouseY - followerY) * 0.12;
-  cursorFollower.style.left = followerX + 'px';
-  cursorFollower.style.top  = followerY + 'px';
-  requestAnimationFrame(animateFollower);
+  document.addEventListener('mousemove', e => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    cursor.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+  }, { passive: true });
+
+  (function animateFollower() {
+    followerX += (mouseX - followerX) * 0.12;
+    followerY += (mouseY - followerY) * 0.12;
+    cursorFollower.style.transform =
+      `translate(${followerX}px, ${followerY}px) translate(-50%, -50%)`;
+    requestAnimationFrame(animateFollower);
+  })();
+
+  // Event delegation — one pair of listeners instead of one per element, so
+  // controls created later (skill slides, dots) get the hover state too.
+  const HOVER_SEL = 'a, button, input, textarea, .pdot, .ss-mdot, .ss-arc-num';
+  document.addEventListener('mouseover', e => {
+    if (e.target.closest(HOVER_SEL)) {
+      cursor.classList.add('hovering');
+      cursorFollower.classList.add('hovering');
+    }
+  }, { passive: true });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest(HOVER_SEL)) {
+      cursor.classList.remove('hovering');
+      cursorFollower.classList.remove('hovering');
+    }
+  }, { passive: true });
+} else if (cursor && cursorFollower) {
+  cursor.remove();
+  cursorFollower.remove();
 }
-animateFollower();
 
-document.querySelectorAll('a, button, .tool-bubble, .tag, .filter-btn, input, textarea').forEach(el => {
-  el.addEventListener('mouseenter', () => {
-    cursor.classList.add('hovering');
-    cursorFollower.classList.add('hovering');
-  });
-  el.addEventListener('mouseleave', () => {
-    cursor.classList.remove('hovering');
-    cursorFollower.classList.remove('hovering');
-  });
-});
 
-// ─── Navbar scroll ───
+/* ─── Navbar ─── */
 const nav = document.getElementById('nav');
-window.addEventListener('scroll', () => {
-  nav.classList.toggle('scrolled', window.scrollY > 40);
-  updateActiveNav();
-});
+const navSections = Array.from(document.querySelectorAll('section[id]'));
+const navLinks    = Array.from(document.querySelectorAll('.nav-link'));
 
-function updateActiveNav() {
-  const sections = document.querySelectorAll('section[id]');
-  const links = document.querySelectorAll('.nav-link');
+function updateNav() {
+  const y = window.scrollY;
+  nav.classList.toggle('scrolled', y > 40);
+
+  // getBoundingClientRect beats offsetTop here: it stays correct no matter how
+  // the section is positioned or what its offsetParent turns out to be.
   let current = '';
-  sections.forEach(section => {
-    if (window.scrollY >= section.offsetTop - 120) {
-      current = section.getAttribute('id');
-    }
-  });
-  links.forEach(link => {
-    link.classList.remove('active');
-    if (link.getAttribute('href') === '#' + current) {
-      link.classList.add('active');
-    }
-  });
+  for (const section of navSections) {
+    if (section.getBoundingClientRect().top <= 120) current = section.id;
+  }
+  for (const link of navLinks) {
+    link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+  }
 }
+onScroll(updateNav);
 
-// ─── Mobile nav toggle ───
+
+/* ─── Mobile nav ─── */
 const navToggle = document.getElementById('navToggle');
 const mobMenu   = document.getElementById('mobMenu');
 
-function closeMobMenu() {
-  navToggle.classList.remove('open');
-  mobMenu.classList.remove('open');
-  document.body.style.overflow = '';
+function setMobMenu(open) {
+  navToggle.classList.toggle('open', open);
+  mobMenu.classList.toggle('open', open);
+  navToggle.setAttribute('aria-expanded', String(open));
+  document.body.style.overflow = open ? 'hidden' : '';
 }
 
-navToggle.addEventListener('click', () => {
-  const isOpen = mobMenu.classList.toggle('open');
-  navToggle.classList.toggle('open', isOpen);
-  document.body.style.overflow = isOpen ? 'hidden' : '';
+navToggle.setAttribute('aria-expanded', 'false');
+navToggle.addEventListener('click', () => setMobMenu(!mobMenu.classList.contains('open')));
+document.querySelectorAll('.mob-link').forEach(link =>
+  link.addEventListener('click', () => setMobMenu(false)));
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && mobMenu.classList.contains('open')) setMobMenu(false);
 });
 
-// Close on mob-link click
-document.querySelectorAll('.mob-link').forEach(link => {
-  link.addEventListener('click', closeMobMenu);
-});
+// A menu left open while resizing to desktop would keep body scroll locked.
+onBreakpointChange(mobile => { if (!mobile) setMobMenu(false); });
 
-// ─── Smooth scroll for all anchor links ───
+
+/* ─── Smooth scroll for in-page anchors ─── */
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   anchor.addEventListener('click', e => {
-    const target = document.querySelector(anchor.getAttribute('href'));
-    if (target) {
-      e.preventDefault();
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    const href = anchor.getAttribute('href');
+    if (href === '#') return;
+    const target = document.querySelector(href);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({
+      behavior: mqReduced.matches ? 'auto' : 'smooth',
+      block: 'start'
+    });
+    history.replaceState(null, '', href);
   });
 });
 
 
-// ─── Topographic Line Art — Smooth Contours + Cursor Interaction ───
+/* ─── Topographic Line Art background ─── */
 const canvas = document.getElementById('bgCanvas');
-const ctx    = canvas.getContext('2d');
 
-// Reduce complexity on mobile/touch devices for performance
-const IS_MOBILE = window.matchMedia('(max-width: 768px)').matches ||
-                  ('ontouchstart' in window);
-let topoTime = 0;
-const CELL   = IS_MOBILE ? 44 : 26;
-const LEVELS = IS_MOBILE ? 6  : 14;
+if (canvas && !mqReduced.matches) {
+  const ctx = canvas.getContext('2d');
 
-let topoMX = -9999, topoMY = -9999;
-let bumpAmt = 0;
-let bumpVel = 0;
+  const CELL   = isMobile ? 44 : 26;
+  const LEVELS = isMobile ? 6  : 14;
 
-window.addEventListener('mousemove', e => {
-  if (IS_MOBILE) return;
-  topoMX = e.clientX;
-  topoMY = e.clientY;
-  bumpVel = 0.09;
-});
+  let viewW = 0, viewH = 0;
+  let topoTime = 0;
+  let topoMX = -9999, topoMY = -9999;
+  let bumpAmt = 0, bumpVel = 0;
+  let rafId = null;
+  let lastTs = 0;
 
-function resizeCanvas() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-function topoNoise(nx, ny) {
-  const base = (
-    Math.sin(nx * 1.3 + topoTime * 0.22) * Math.cos(ny * 1.0 - topoTime * 0.17) +
-    Math.sin(nx * 2.4 - ny * 0.6 + topoTime * 0.14) * 0.55 +
-    Math.cos(nx * 0.5 + ny * 1.9 - topoTime * 0.20) * 0.45 +
-    Math.sin(nx * 0.4 - ny * 0.5 + topoTime * 0.09) * 0.30
-  ) / 2.3;
-  if (bumpAmt > 0.02 && topoMX >= 0) {
-    const cx = (topoMX / canvas.width)  * 5.5;
-    const cy = (topoMY / canvas.height) * 5.5;
-    const d2 = (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy);
-    return base + bumpAmt * Math.exp(-d2 * 9.0);
+  if (!mqCoarse.matches) {
+    window.addEventListener('mousemove', e => {
+      topoMX = e.clientX;
+      topoMY = e.clientY;
+      bumpVel = 0.09;
+    }, { passive: true });
   }
-  return base;
-}
 
-const SEG = [
-  [], [[2,3]], [[1,2]], [[1,3]],
-  [[0,1]], [[0,3],[1,2]], [[0,2]], [[0,3]],
-  [[0,3]], [[0,2]], [[0,1],[2,3]], [[0,1]],
-  [[1,3]], [[1,2]], [[2,3]], []
-];
+  function resizeCanvas() {
+    viewW = window.innerWidth;
+    viewH = window.innerHeight;
+    // Back the canvas with real device pixels, capped so a 3× phone screen
+    // doesn't triple the per-frame cost. Without this the hairlines were
+    // resampled from a 1× buffer and looked soft on every retina display.
+    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
+    canvas.width  = Math.round(viewW * dpr);
+    canvas.height = Math.round(viewH * dpr);
+    canvas.style.width  = viewW + 'px';
+    canvas.style.height = viewH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resizeCanvas();
 
-function edgePt(e, x, y, cs, vTL, vTR, vBR, vBL, thr) {
-  const f = (a, b) => b !== a ? Math.max(0, Math.min(1, (thr - a) / (b - a))) : 0.5;
-  if (e === 0) return [x + cs * f(vTL, vTR), y];
-  if (e === 1) return [x + cs, y + cs * f(vTR, vBR)];
-  if (e === 2) return [x + cs * f(vBL, vBR), y + cs];
-               return [x, y + cs * f(vTL, vBL)];
-}
+  // On phones, showing/hiding the URL bar fires `resize` with a new height on
+  // every scroll. Reacting to that caused a visible re-render storm, so only a
+  // real width change counts as a resize there.
+  let lastW = window.innerWidth;
+  window.addEventListener('resize', debounce(() => {
+    if (isMobile && window.innerWidth === lastW) return;
+    lastW = window.innerWidth;
+    resizeCanvas();
+  }, 150), { passive: true });
 
-const ptKey = (x, y) => `${Math.round(x * 2)},${Math.round(y * 2)}`;
-
-function buildChains(segs) {
-  if (!segs.length) return [];
-  const used    = new Uint8Array(segs.length);
-  const headMap = new Map();
-  const tailMap = new Map();
-  segs.forEach(([a, b], i) => {
-    headMap.set(ptKey(a[0], a[1]), i);
-    tailMap.set(ptKey(b[0], b[1]), i);
-  });
-  const chains = [];
-  for (let s = 0; s < segs.length; s++) {
-    if (used[s]) continue;
-    used[s] = 1;
-    const pts = [segs[s][0], segs[s][1]];
-    for (;;) {
-      const [lx, ly] = pts[pts.length - 1];
-      const k = ptKey(lx, ly);
-      let i = headMap.get(k);
-      if (i !== undefined && !used[i]) { used[i] = 1; pts.push(segs[i][1]); continue; }
-      i = tailMap.get(k);
-      if (i !== undefined && !used[i]) { used[i] = 1; pts.push(segs[i][0]); continue; }
-      break;
+  function topoNoise(nx, ny) {
+    const base = (
+      Math.sin(nx * 1.3 + topoTime * 0.22) * Math.cos(ny * 1.0 - topoTime * 0.17) +
+      Math.sin(nx * 2.4 - ny * 0.6 + topoTime * 0.14) * 0.55 +
+      Math.cos(nx * 0.5 + ny * 1.9 - topoTime * 0.20) * 0.45 +
+      Math.sin(nx * 0.4 - ny * 0.5 + topoTime * 0.09) * 0.30
+    ) / 2.3;
+    if (bumpAmt > 0.02 && topoMX >= 0) {
+      const cx = (topoMX / viewW) * 5.5;
+      const cy = (topoMY / viewH) * 5.5;
+      const d2 = (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy);
+      return base + bumpAmt * Math.exp(-d2 * 9.0);
     }
-    for (;;) {
-      const [fx, fy] = pts[0];
-      const k = ptKey(fx, fy);
-      let i = tailMap.get(k);
-      if (i !== undefined && !used[i]) { used[i] = 1; pts.unshift(segs[i][0]); continue; }
-      i = headMap.get(k);
-      if (i !== undefined && !used[i]) { used[i] = 1; pts.unshift(segs[i][1]); continue; }
-      break;
+    return base;
+  }
+
+  const SEG = [
+    [], [[2,3]], [[1,2]], [[1,3]],
+    [[0,1]], [[0,3],[1,2]], [[0,2]], [[0,3]],
+    [[0,3]], [[0,2]], [[0,1],[2,3]], [[0,1]],
+    [[1,3]], [[1,2]], [[2,3]], []
+  ];
+
+  function edgePt(e, x, y, cs, vTL, vTR, vBR, vBL, thr) {
+    const f = (a, b) => b !== a ? clamp((thr - a) / (b - a), 0, 1) : 0.5;
+    if (e === 0) return [x + cs * f(vTL, vTR), y];
+    if (e === 1) return [x + cs, y + cs * f(vTR, vBR)];
+    if (e === 2) return [x + cs * f(vBL, vBR), y + cs];
+                 return [x, y + cs * f(vTL, vBL)];
+  }
+
+  const ptKey = (x, y) => `${Math.round(x * 2)},${Math.round(y * 2)}`;
+
+  function buildChains(segs) {
+    if (!segs.length) return [];
+    const used    = new Uint8Array(segs.length);
+    const headMap = new Map();
+    const tailMap = new Map();
+    segs.forEach(([a, b], i) => {
+      headMap.set(ptKey(a[0], a[1]), i);
+      tailMap.set(ptKey(b[0], b[1]), i);
+    });
+    const chains = [];
+    for (let s = 0; s < segs.length; s++) {
+      if (used[s]) continue;
+      used[s] = 1;
+      const pts = [segs[s][0], segs[s][1]];
+      for (;;) {
+        const [lx, ly] = pts[pts.length - 1];
+        const k = ptKey(lx, ly);
+        let i = headMap.get(k);
+        if (i !== undefined && !used[i]) { used[i] = 1; pts.push(segs[i][1]); continue; }
+        i = tailMap.get(k);
+        if (i !== undefined && !used[i]) { used[i] = 1; pts.push(segs[i][0]); continue; }
+        break;
+      }
+      for (;;) {
+        const [fx, fy] = pts[0];
+        const k = ptKey(fx, fy);
+        let i = tailMap.get(k);
+        if (i !== undefined && !used[i]) { used[i] = 1; pts.unshift(segs[i][0]); continue; }
+        i = headMap.get(k);
+        if (i !== undefined && !used[i]) { used[i] = 1; pts.unshift(segs[i][1]); continue; }
+        break;
+      }
+      if (pts.length >= 2) chains.push(pts);
     }
-    if (pts.length >= 2) chains.push(pts);
+    return chains;
   }
-  return chains;
-}
 
-function drawSmooth(pts) {
-  if (pts.length < 2) return;
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  if (pts.length === 2) { ctx.lineTo(pts[1][0], pts[1][1]); return; }
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(pts.length - 1, i + 2)];
-    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2[0], p2[1]);
-  }
-}
-
-function drawTopo() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  bumpAmt += bumpVel;
-  bumpVel  = bumpVel * 0.65 - bumpAmt * 0.06;
-  if (Math.abs(bumpAmt) < 0.001 && Math.abs(bumpVel) < 0.001) { bumpAmt = 0; bumpVel = 0; }
-
-  const cols = Math.ceil(canvas.width  / CELL) + 1;
-  const rows = Math.ceil(canvas.height / CELL) + 1;
-  const grid = [];
-  for (let r = 0; r <= rows; r++) {
-    grid[r] = [];
-    for (let c = 0; c <= cols; c++) {
-      grid[r][c] = topoNoise((c / cols) * 5.5, (r / rows) * 5.5);
+  function drawSmooth(pts) {
+    if (pts.length < 2) return;
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    if (pts.length === 2) { ctx.lineTo(pts[1][0], pts[1][1]); return; }
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(pts.length - 1, i + 2)];
+      ctx.bezierCurveTo(
+        p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6,
+        p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6,
+        p2[0], p2[1]
+      );
     }
   }
 
-  ctx.lineJoin = 'round';
-  ctx.lineCap  = 'round';
+  function drawTopo(ts) {
+    rafId = requestAnimationFrame(drawTopo);
 
-  for (let lv = 0; lv < LEVELS; lv++) {
-    const thr     = -0.9 + (lv / (LEVELS - 1)) * 1.8;
-    const primary = lv % 4 === 0;
-    const segs = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = c * CELL, y = r * CELL;
-        const vTL = grid[r][c],     vTR = grid[r][c + 1];
-        const vBR = grid[r+1][c+1], vBL = grid[r+1][c];
-        const st  = ((vTL>thr)?8:0)|((vTR>thr)?4:0)|((vBR>thr)?2:0)|((vBL>thr)?1:0);
-        for (const [ea, eb] of SEG[st]) {
-          segs.push([
-            edgePt(ea, x, y, CELL, vTL, vTR, vBR, vBL, thr),
-            edgePt(eb, x, y, CELL, vTL, vTR, vBR, vBL, thr)
-          ]);
+    // Advance by elapsed time, not by frame count — otherwise the animation
+    // ran at double speed on 120 Hz displays.
+    const dt = lastTs ? Math.min((ts - lastTs) / 16.667, 3) : 1;
+    lastTs = ts;
+
+    ctx.clearRect(0, 0, viewW, viewH);
+
+    bumpAmt += bumpVel * dt;
+    bumpVel  = bumpVel * Math.pow(0.65, dt) - bumpAmt * 0.06 * dt;
+    if (Math.abs(bumpAmt) < 0.001 && Math.abs(bumpVel) < 0.001) { bumpAmt = 0; bumpVel = 0; }
+
+    const cols = Math.ceil(viewW / CELL) + 1;
+    const rows = Math.ceil(viewH / CELL) + 1;
+    const grid = [];
+    for (let r = 0; r <= rows; r++) {
+      grid[r] = [];
+      for (let c = 0; c <= cols; c++) {
+        grid[r][c] = topoNoise((c / cols) * 5.5, (r / rows) * 5.5);
+      }
+    }
+
+    ctx.lineJoin = 'round';
+    ctx.lineCap  = 'round';
+
+    for (let lv = 0; lv < LEVELS; lv++) {
+      const thr     = -0.9 + (lv / (LEVELS - 1)) * 1.8;
+      const primary = lv % 4 === 0;
+      const segs = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * CELL, y = r * CELL;
+          const vTL = grid[r][c],       vTR = grid[r][c + 1];
+          const vBR = grid[r + 1][c + 1], vBL = grid[r + 1][c];
+          const st  = ((vTL>thr)?8:0)|((vTR>thr)?4:0)|((vBR>thr)?2:0)|((vBL>thr)?1:0);
+          for (const [ea, eb] of SEG[st]) {
+            segs.push([
+              edgePt(ea, x, y, CELL, vTL, vTR, vBR, vBL, thr),
+              edgePt(eb, x, y, CELL, vTL, vTR, vBR, vBL, thr)
+            ]);
+          }
         }
       }
+      const chains = buildChains(segs);
+      const boost  = Math.min(bumpAmt * 0.5, 0.3);
+      ctx.strokeStyle = primary
+        ? `rgba(255,255,255,${0.65 + boost})`
+        : `rgba(255,255,255,${0.30 + boost * 0.5})`;
+      ctx.lineWidth = primary ? 1.2 : 0.7;
+      ctx.beginPath();
+      for (const chain of chains) drawSmooth(chain);
+      ctx.stroke();
     }
-    const chains  = buildChains(segs);
-    const boost   = Math.min(bumpAmt * 0.5, 0.3);
-    ctx.strokeStyle = primary
-      ? `rgba(255,255,255,${0.65 + boost})`
-      : `rgba(255,255,255,${0.30 + boost * 0.5})`;
-    ctx.lineWidth = primary ? 1.2 : 0.7;
-    ctx.beginPath();
-    for (const chain of chains) drawSmooth(chain);
-    ctx.stroke();
+
+    if (bumpAmt > 0.03 && topoMX >= 0) {
+      const glowRadius = 140 + bumpAmt * 60;
+      const glowAlpha  = Math.min(bumpAmt * 0.12, 0.18);
+      const grd = ctx.createRadialGradient(topoMX, topoMY, 0, topoMX, topoMY, glowRadius);
+      grd.addColorStop(0,   `rgba(255,255,255,${glowAlpha})`);
+      grd.addColorStop(0.4, `rgba(255,255,255,${glowAlpha * 0.3})`);
+      grd.addColorStop(1,   'rgba(255,255,255,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(topoMX, topoMY, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+      const dotGrd = ctx.createRadialGradient(topoMX, topoMY, 0, topoMX, topoMY, 18);
+      dotGrd.addColorStop(0, `rgba(255,255,255,${Math.min(bumpAmt * 0.4, 0.5)})`);
+      dotGrd.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = dotGrd;
+      ctx.beginPath();
+      ctx.arc(topoMX, topoMY, 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    topoTime += 0.004 * dt;
   }
 
-  if (bumpAmt > 0.03 && topoMX >= 0) {
-    const glowRadius = 140 + bumpAmt * 60;
-    const glowAlpha  = Math.min(bumpAmt * 0.12, 0.18);
-    const grd = ctx.createRadialGradient(topoMX, topoMY, 0, topoMX, topoMY, glowRadius);
-    grd.addColorStop(0,   `rgba(255,255,255,${glowAlpha})`);
-    grd.addColorStop(0.4, `rgba(255,255,255,${glowAlpha * 0.3})`);
-    grd.addColorStop(1,   'rgba(255,255,255,0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.arc(topoMX, topoMY, glowRadius, 0, Math.PI * 2);
-    ctx.fill();
-    const dotGrd = ctx.createRadialGradient(topoMX, topoMY, 0, topoMX, topoMY, 18);
-    dotGrd.addColorStop(0, `rgba(255,255,255,${Math.min(bumpAmt * 0.4, 0.5)})`);
-    dotGrd.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = dotGrd;
-    ctx.beginPath();
-    ctx.arc(topoMX, topoMY, 18, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  function startTopo() { if (rafId === null) { lastTs = 0; rafId = requestAnimationFrame(drawTopo); } }
+  function stopTopo()  { if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; } }
 
-  topoTime += 0.004;
-  requestAnimationFrame(drawTopo);
+  // No point burning battery on a background tab.
+  document.addEventListener('visibilitychange', () => {
+    document.hidden ? stopTopo() : startTopo();
+  });
+  startTopo();
 }
 
-drawTopo();
 
-// ─── Profile card 3D tilt ───
+/* ─── Profile card 3D tilt ─── */
 const profileCard = document.getElementById('profileCard');
-if (profileCard) {
-  profileCard.parentElement.addEventListener('mousemove', e => {
-    const rect   = profileCard.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top  + rect.height / 2;
-    const rotY = ((e.clientX - centerX) / (rect.width  / 2)) * 15;
-    const rotX = ((e.clientY - centerY) / (rect.height / 2)) * -15;
-    profileCard.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
-  });
-  profileCard.parentElement.addEventListener('mouseleave', () => {
+if (profileCard && !mqCoarse.matches) {
+  const holder = profileCard.parentElement;
+  holder.addEventListener('mousemove', e => {
+    const rect = profileCard.getBoundingClientRect();
+    const rotY = ((e.clientX - (rect.left + rect.width  / 2)) / (rect.width  / 2)) * 15;
+    const rotX = ((e.clientY - (rect.top  + rect.height / 2)) / (rect.height / 2)) * -15;
+    profileCard.style.transform =
+      `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+  }, { passive: true });
+  holder.addEventListener('mouseleave', () => {
     profileCard.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
-  });
+  }, { passive: true });
 }
 
-// ─── Hero cube — mouse parallax ───
-const avatar3d = document.getElementById('avatar3d');
-document.addEventListener('mousemove', e => {
-  if (!avatar3d) return;
-  const rx = ((e.clientY / window.innerHeight) - 0.5) * 20;
-  const ry = ((e.clientX / window.innerWidth)  - 0.5) * 20;
-  avatar3d.querySelector('.avatar-inner').style.animationPlayState = 'paused';
-  avatar3d.querySelector('.avatar-inner').style.transform =
-    `rotateX(${10 + rx}deg) rotateY(${ry}deg)`;
-});
-document.addEventListener('mouseleave', () => {
-  if (!avatar3d) return;
-  avatar3d.querySelector('.avatar-inner').style.animationPlayState = 'running';
-});
 
-// ─── Scroll Reveal ───
-const revealObserver = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-      revealObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.12 });
+/* ─── Scroll Reveal ─── */
+// These selectors used to name classes from an older markup revision
+// (.project-card, .channel-card, .skill-category, .contact-text …) that no
+// longer exist, so most of the page never animated in. Now they match reality.
+const revealTargets = Array.from(document.querySelectorAll(
+  '.section-header, .about-text, .about-card-3d, .stat-card, ' +
+  '.ch-header, .ch-sub, .ch-card, ' +
+  '.ct-header, .ct-left, .ct-form, .ct-info-card'
+));
 
-document.querySelectorAll('.project-card, .channel-card, .skill-category, .stat-card, .about-text, .about-card-3d, .contact-text, .contact-form, .section-header').forEach((el, i) => {
-  el.classList.add('reveal');
-  if (i % 2 === 1) el.classList.add('reveal-delay-1');
-  if (i % 3 === 2) el.classList.add('reveal-delay-2');
-  revealObserver.observe(el);
-});
+// `.reveal` starts at opacity:0, so anything that stops the reveal from running
+// leaves whole sections permanently invisible. Only opt in to the animation
+// when we can guarantee an element will be un-hidden again.
+if ('IntersectionObserver' in window && !mqReduced.matches) {
+  const pending = new Set(revealTargets);
 
-// ─── Skill bars animate on scroll ───
-const skillFills = document.querySelectorAll('.skill-fill');
-const skillObserver = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      const target = entry.target.getAttribute('data-width');
-      entry.target.style.width = target + '%';
-      skillObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.5 });
-skillFills.forEach(fill => skillObserver.observe(fill));
+  const show = el => { el.classList.add('visible'); pending.delete(el); };
 
-// ─── Portfolio filter ───
-const filterBtns  = document.querySelectorAll('.filter-btn');
-const projectCards = document.querySelectorAll('.project-card');
-
-filterBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    filterBtns.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const filter = btn.getAttribute('data-filter');
-    projectCards.forEach(card => {
-      if (filter === 'all' || card.getAttribute('data-category') === filter) {
-        card.classList.remove('hidden');
-      } else {
-        card.classList.add('hidden');
+  const revealObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        show(entry.target);
+        revealObserver.unobserve(entry.target);
       }
-    });
-  });
-});
-
-// ─── Contact Form ───
-// ─── EmailJS init ───
-// Keys: emailjs.com dan olingan (to'ldiring)
-const EJS_SERVICE  = 'service_b317zyh';
-const EJS_TEMPLATE = 'template_3w4hisk';
-const EJS_KEY      = 'ClVyIQU-leRs4bEwP';
-
-emailjs.init(EJS_KEY);
-
-const contactForm = document.getElementById('contactForm');
-if (contactForm) {
-  contactForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = contactForm.querySelector('.ct-btn');
-    const originalText = btn.textContent;
-
-    btn.textContent = 'Sending...';
-    btn.disabled = true;
-    btn.style.opacity = '0.7';
-
-    const params = {
-      from_name:  contactForm.querySelector('#name').value,
-      from_email: contactForm.querySelector('#email').value,
-      message:    contactForm.querySelector('#message').value,
-    };
-
-    try {
-      await emailjs.send(EJS_SERVICE, EJS_TEMPLATE, params);
-
-      btn.textContent = 'Message Sent ✓';
-      btn.style.background = 'rgba(74,222,128,0.15)';
-      btn.style.color = '#4ade80';
-      btn.style.opacity = '1';
-      contactForm.reset();
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.style.background = '';
-        btn.style.color = '';
-        btn.disabled = false;
-      }, 4000);
-
-    } catch (err) {
-      console.error('EmailJS error:', err);
-      btn.textContent = 'Error — try again';
-      btn.style.background = 'rgba(255,60,60,0.12)';
-      btn.style.color = 'rgba(255,100,100,0.9)';
-      btn.style.opacity = '1';
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.style.background = '';
-        btn.style.color = '';
-        btn.disabled = false;
-      }, 3500);
     }
+  }, { threshold: 0.12 });
+
+  revealTargets.forEach((el, i) => {
+    el.classList.add('reveal');
+    if (i % 2 === 1) el.classList.add('reveal-delay-1');
+    if (i % 3 === 2) el.classList.add('reveal-delay-2');
+    revealObserver.observe(el);
   });
+
+  // Safety net for a starved observer (bfcache restore, layout race): reveal
+  // anything that is on screen but still hidden. Scoped to the viewport so
+  // content further down keeps its entrance animation, and it unhooks itself
+  // once every target has been shown.
+  function revealWhatIsOnScreen() {
+    if (!pending.size) return;
+    for (const el of Array.from(pending)) {
+      // Anything whose top has crossed the bottom edge has been reached —
+      // including things already scrolled past, which must never stay hidden.
+      if (el.getBoundingClientRect().top < window.innerHeight) {
+        show(el);
+        revealObserver.unobserve(el);
+      }
+    }
+  }
+  onScroll(revealWhatIsOnScreen);
+  setTimeout(revealWhatIsOnScreen, 1200);
 }
 
-// ─── i18n — bilingual EN / UZ ───
+
+/* ─── i18n — bilingual EN / UZ ─── */
 const translations = {
   en: {
     nav_about:           'About',
@@ -428,6 +477,7 @@ const translations = {
     nav_skills:          'Skills',
     nav_channels:        'Channels',
     nav_contact:         'Contact',
+    page_title:          'MIM — Muhammad Ismoil | Full Stack Developer',
     hero_badge:          'Available for opportunities',
     hero_tagline:        'Full Stack Developer',
     hero_btn1:           'See my work',
@@ -441,33 +491,18 @@ const translations = {
     stat_ideas:          'Ideas',
     card_role:           'Developer & Creator',
     portfolio_title:     'Portfolio',
-    filter_all:          'All',
-    filter_web:          'Web',
-    filter_app:          'App',
-    filter_design:       'Design',
     proj1_title:         'Tonsor',
     proj1_desc:          'An exclusive digital platform connecting elite barbers with their clients — booking, profiles, and business tools in one place.',
     proj2_title:         "O'zbekiston",
-    proj2_desc:          "An immersive web experience showcasing the history, culture, and regions of Uzbekistan — built with cinematic design.",
+    proj2_desc:          'An immersive web experience showcasing the history, culture, and regions of Uzbekistan — built with cinematic design.',
     proj3_title:         'MIM Logistic',
     proj3_desc:          'A professional website for logistics companies — clean design with tracking, routing, and service showcase features.',
     wip_tag:             'In Progress',
     proj4_title:         'Maison Aura',
     proj4_desc:          'A classic-style online boutique with luxury aesthetics — elegant product showcase, smooth UI, and refined shopping experience.',
-    coming_soon:         'Coming Soon',
     link_live:           'Live →',
     link_code:           'Code →',
-    link_ask:            'Ask me →',
-    link_view:           'View →',
     skills_title:        'Skills',
-    skill_frontend:      'Frontend',
-    skill_backend:       'Backend',
-    skill_tools:         'Tools',
-    skill_languages:     'Languages',
-    skill_db:            'Databases',
-    lang_uz:             'Uzbek',
-    lang_en:             'English',
-    lang_ru:             'Russian',
     channels_title:      'Channels',
     channels_lead:       'Find me across the internet. Follow along for content, updates, and behind-the-scenes.',
     contact_title:       'Contact',
@@ -481,14 +516,26 @@ const translations = {
     form_name:           'Name',
     form_name_ph:        'Your name',
     form_email:          'Email',
+    form_email_ph:       'your@email.com — for a reply',
+    form_optional:       'optional',
     form_message:        'Message',
     form_message_ph:     'Tell me about your project...',
     form_send:           'Send Message →',
-    footer_brand:        'Muhammad Ismoil — Building the future, one project at a time.',
+    form_sending:        'Sending…',
+    form_sent:           'Message sent ✓',
+    form_sent_msg:       'Thanks — your message is on its way. I usually reply within a day.',
+    form_error:          'Could not send',
+    form_error_msg:      'The mail service is not responding right now.',
+    form_fallback_lead:  'Mail service is down — reach me directly:',
+    form_err_name:       'Please enter your name.',
+    form_err_email:      'Please enter a valid email address.',
+    form_err_message:    'Please write a short message (at least 10 characters).',
+    footer_brand:        'Muhammad Ismoil Muminkhujaev',
     footer_nav:          'Navigation',
     footer_social:       'Social',
-    footer_copy:         '© 2026 Muhammad Ismoil — MIM. All rights reserved.',
-    footer_made:         'Made in Uzbekistan',
+    footer_copy:         '© {year} Muhammad Ismoil — MIM. All rights reserved.',
+    footer_made:         'Made with passion in Uzbekistan',
+    mob_copy:            '© {year} MIM',
   },
   uz: {
     nav_about:           'Haqimda',
@@ -496,12 +543,13 @@ const translations = {
     nav_skills:          "Ko'nikmalar",
     nav_channels:        'Kanallar',
     nav_contact:         'Aloqa',
+    page_title:          'MIM — Muhammad Ismoil | Full Stack Dasturchi',
     hero_badge:          'Imkoniyatlarga tayyor',
     hero_tagline:        'Full Stack Dasturchi',
-    hero_btn1:           'Ishlarimni ko\'ring',
-    hero_btn2:           'Bog\'laning',
+    hero_btn1:           "Ishlarimni ko'ring",
+    hero_btn2:           "Bog'laning",
     about_title:         'Men haqimda',
-    about_lead:          "Kokand, O'zbekistonlik 17 yoshli dasturchi va ijodkorman, foydali va mazmunli loyihalar yaratishga katta qiziqishim bor.",
+    about_lead:          "<strong>Qo'qon, O'zbekiston</strong>lik 17 yoshli dasturchi va ijodkorman, foydali va mazmunli loyihalar yaratishga katta qiziqishim bor.",
     about_p1:            "Men <strong>Target International School</strong>'da o'qiyman va u yerda akademik bilimlarni texnologiya hamda amaliy dasturlash bilan uyg'unlashtiraman. Men \"o'rganish — bu yaratish orqali bo'ladi\" degan tamoyilga ishonaman va har bir loyiha orqali o'zimni rivojlantirib boraman.",
     about_p2:            "Bo'sh vaqtlarimda yangi g'oyalarni o'rganaman, ijodiy loyihalar ustida ishlayman va dasturchi sifatida o'sish uchun doim o'zimni sinovdan o'tkazaman.",
     stat_age:            'Yosh',
@@ -509,199 +557,219 @@ const translations = {
     stat_ideas:          "G'oyalar",
     card_role:           'Dasturchi va Ijodkor',
     portfolio_title:     'Portfolio',
-    filter_all:          'Barchasi',
-    filter_web:          'Web',
-    filter_app:          'Ilova',
-    filter_design:       'Dizayn',
     proj1_title:         'Tonsor',
     proj1_desc:          "Sartaroshlar va ularning mijozlarini bog'lovchi eksklyuziv raqamli platforma — bron qilish, profil va biznes vositalari bir joyda.",
     proj2_title:         "O'zbekiston",
     proj2_desc:          "O'zbekistonning tarixi, madaniyati va hududlarini kinematografik dizayn bilan taqdim etuvchi veb-tajriba.",
     proj3_title:         'MIM Logistic',
-    wip_tag:             'Jarayonda',
     proj3_desc:          "Logistika kompaniyalari uchun professional veb-sayt — yuk kuzatish, marshrutlash va xizmatlarni namoyish qilish.",
+    wip_tag:             'Jarayonda',
     proj4_title:         'Maison Aura',
     proj4_desc:          "Klassik uslubdagi onlayn butik — elegantlik, silliq interfeys va professional xarid tajribasi.",
-    coming_soon:         'Tez Orada',
-    link_live:           'Ko\'rish →',
+    link_live:           "Ko'rish →",
     link_code:           'Kod →',
-    link_ask:            'So\'rang →',
-    link_view:           'Ko\'rish →',
     skills_title:        "Ko'nikmalar",
-    skill_frontend:      'Frontend',
-    skill_backend:       'Backend',
-    skill_tools:         'Asboblar',
-    skill_languages:     'Tillar',
-    skill_db:            "Ma'lumotlar bazasi",
-    lang_uz:             "O'zbek",
-    lang_en:             'Ingliz',
-    lang_ru:             'Rus',
     channels_title:      'Kanallar',
     channels_lead:       "Meni internetda toping. Kontent, yangiliklar va sahna ortidan xabardor bo'lib turing.",
     contact_title:       'Aloqa',
-    contact_h3:          'Keling, birgalikda biror narsa qurайик.',
+    contact_h3:          'Keling, birgalikda biror narsa quraylik.',
     contact_p:           "Loyihangiz bormi? Hamkorlik qilmoqchimisiz? Yoki shunchaki salom demoqchimisiz? Mening pochtam doim ochiq.",
     contact_loc_label:   'Manzil',
-    contact_loc_val:     'Kokand, O\'zbekiston',
+    contact_loc_val:     "Qo'qon, O'zbekiston",
     contact_school_label:'Maktab',
     contact_status_label:'Holat',
     contact_status_val:  'Loyihalarga tayyor',
     form_name:           'Ism',
     form_name_ph:        'Ismingiz',
     form_email:          'Elektron pochta',
+    form_email_ph:       'pochta@manzil.com — javob olish uchun',
+    form_optional:       'ixtiyoriy',
     form_message:        'Xabar',
     form_message_ph:     'Loyihangiz haqida yozing...',
     form_send:           'Xabar yuborish →',
-    footer_brand:        "Muhammad Ismoil — Kelajakni qurmoqdaman, bir loyiha biridan.",
+    form_sending:        'Yuborilmoqda…',
+    form_sent:           'Xabar yuborildi ✓',
+    form_sent_msg:       "Rahmat — xabaringiz yuborildi. Odatda bir kun ichida javob beraman.",
+    form_error:          'Yuborilmadi',
+    form_error_msg:      "Pochta xizmati hozir javob bermayapti.",
+    form_fallback_lead:  "Pochta xizmati ishlamayapti — men bilan to'g'ridan-to'g'ri bog'laning:",
+    form_err_name:       'Iltimos, ismingizni kiriting.',
+    form_err_email:      "Iltimos, to'g'ri elektron pochta manzilini kiriting.",
+    form_err_message:    "Iltimos, qisqacha xabar yozing (kamida 10 ta belgi).",
+    footer_brand:        'Muhammad Ismoil Muminkhujaev',
     footer_nav:          'Navigatsiya',
     footer_social:       'Ijtimoiy',
-    footer_copy:         "© 2026 Muhammad Ismoil — MIM. Barcha huquqlar himoyalangan.",
-    footer_made:         "O'zbekistonda yaratildi",
+    footer_copy:         "© {year} Muhammad Ismoil — MIM. Barcha huquqlar himoyalangan.",
+    footer_made:         "O'zbekistonda mehr bilan yaratildi",
+    mob_copy:            '© {year} MIM',
   }
 };
 
-let currentLang = localStorage.getItem('mim-lang') || 'en';
+const YEAR = new Date().getFullYear();
+let currentLang = localStorage.getItem('mim-lang') === 'uz' ? 'uz' : 'en';
+
+function t(key) {
+  const dict = translations[currentLang] || translations.en;
+  const val = dict[key] !== undefined ? dict[key] : translations.en[key];
+  return val === undefined ? '' : String(val).replace('{year}', YEAR);
+}
+
+// Anything that needs re-rendering when the language flips registers here.
+const langSubscribers = [];
+function onLangChange(fn) { langSubscribers.push(fn); }
 
 function applyLang(lang) {
-  currentLang = lang;
-  localStorage.setItem('mim-lang', lang);
-  const t = translations[lang];
+  currentLang = translations[lang] ? lang : 'en';
+  try { localStorage.setItem('mim-lang', currentLang); } catch { /* private mode */ }
 
-  // text nodes
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if (t[key] !== undefined) el.innerHTML = t[key];
+    const val = t(el.getAttribute('data-i18n'));
+    if (val !== '') el.innerHTML = val;
   });
-
-  // placeholders
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    const key = el.getAttribute('data-i18n-placeholder');
-    if (t[key] !== undefined) el.setAttribute('placeholder', t[key]);
+    const val = t(el.getAttribute('data-i18n-placeholder'));
+    if (val !== '') el.setAttribute('placeholder', val);
   });
 
-  // toggle button active state
-  document.getElementById('langEN').classList.toggle('lang-active', lang === 'en');
-  document.getElementById('langUZ').classList.toggle('lang-active', lang === 'uz');
+  document.getElementById('langEN').classList.toggle('lang-active', currentLang === 'en');
+  document.getElementById('langUZ').classList.toggle('lang-active', currentLang === 'uz');
+  document.documentElement.lang = currentLang;
+  document.title = t('page_title');
 
-  document.documentElement.lang = lang === 'uz' ? 'uz' : 'en';
+  langSubscribers.forEach(fn => fn(currentLang));
 }
 
 document.getElementById('langToggle').addEventListener('click', () => {
   applyLang(currentLang === 'en' ? 'uz' : 'en');
 });
 
-// ─── Page load animation ───
-document.addEventListener('DOMContentLoaded', () => {
-  document.body.classList.add('page-loaded');
-  applyLang(currentLang);
-});
 
-// ─── Portfolio full-page scroll ───
-const portfolioWrapper = document.getElementById('portfolioWrapper');
-const portfolioStage   = document.getElementById('portfolioStage');
-const portfolioSlides  = document.querySelectorAll('.portfolio-slide');
-const portfolioDots    = document.querySelectorAll('.pdot');
-let currentSlide = 0;
-let pfLocked     = false;
-let pfWasInside  = false;
+/* ============================================================
+   Slide stages — portfolio & skills
 
-function pfWrapperTop() {
-  return portfolioWrapper.getBoundingClientRect().top + window.scrollY;
-}
-function inPortfolio() {
-  const top = pfWrapperTop();
-  const y   = window.scrollY;
-  const ih  = window.innerHeight;
-  return y + 4 >= top && y + ih - 4 <= top + portfolioWrapper.offsetHeight;
-}
-function goToSlide(index) {
-  if (index === currentSlide) return;
-  portfolioSlides[currentSlide].classList.remove('active');
-  portfolioSlides[currentSlide].classList.add('exited');
-  portfolioSlides[index].classList.remove('exited');
-  portfolioSlides[index].classList.add('active');
-  portfolioDots.forEach((d, i) => d.classList.toggle('active', i === index));
-  currentSlide = index;
-}
-function pfSnapTo(index) {
-  window.scrollTo({ top: pfWrapperTop() + index * window.innerHeight, behavior: 'instant' });
-}
+   One controller, two presentations:
 
-if (IS_MOBILE) {
-  // ── MOBILE PORTFOLIO ──
-  // On iOS sticky+scroll = unreliable. Solution:
-  // wrapper = 1 screen, stage = position:relative (no sticky).
-  // Page scrolls normally. Slides change via swipe on the stage.
-  const ih = window.innerHeight;
-  portfolioWrapper.style.height    = ih + 'px';
-  portfolioStage.style.position    = 'relative';
-  portfolioStage.style.top         = 'auto';
-  portfolioStage.style.height      = ih + 'px';
+   • wide screens — the stage is position:sticky and the active slide is
+     derived from scroll position. Nothing is preventDefault-ed, so the wheel,
+     the trackpad, a touchscreen, the scrollbar, Page Down and the arrow keys
+     all drive it. The previous build hijacked `wheel`, which is why the
+     animation was dead on trackpad-less and touch-first machines.
 
-  window.addEventListener('resize', () => {
-    const nih = window.innerHeight;
-    portfolioWrapper.style.height = nih + 'px';
-    portfolioStage.style.height   = nih + 'px';
-  }, { passive: true });
+   • narrow screens — the slides are a native horizontal scroll-snap carousel
+     (see styles.css). Vertical swipes scroll the page, horizontal swipes move
+     the carousel; the browser arbitrates, so the visitor can never get stuck.
+   ============================================================ */
+function createStage({ wrapper, stage, track, slides, dots, onActivate }) {
+  if (!wrapper || !stage || !track || !slides.length) return null;
 
-  let _pfTY = null;
+  let current = -1;
+  let mode = null;
 
-  portfolioStage.addEventListener('touchstart', e => {
-    _pfTY = e.touches[0].clientY;
-  }, { passive: true });
+  function setActive(i, notify = true) {
+    i = clamp(i, 0, slides.length - 1);
+    if (i === current) return;
+    current = i;
+    slides.forEach((slide, n) => {
+      slide.classList.toggle('active', n === i);
+      slide.classList.toggle('exited', n < i);
+      // No aria-hidden here: on desktop `visibility:hidden` already removes the
+      // inactive slides from the a11y tree and the tab order, and on mobile
+      // every slide really is reachable by swiping.
+    });
+    dots.forEach((d, n) => {
+      d.classList.toggle('active', n === i);
+      if (n === i) d.setAttribute('aria-current', 'true');
+      else d.removeAttribute('aria-current');
+    });
+    if (notify && onActivate) onActivate(i);
+  }
 
-  portfolioStage.addEventListener('touchmove', e => {
-    e.preventDefault(); // block page scroll while on stage
-  }, { passive: false });
+  const stepHeight = () => stage.offsetHeight || window.innerHeight;
 
-  portfolioStage.addEventListener('touchend', e => {
-    if (_pfTY === null) return;
-    const diff = _pfTY - e.changedTouches[0].clientY;
-    _pfTY = null;
-    if (Math.abs(diff) < 35 || pfLocked) return;
-    const max = portfolioSlides.length - 1;
-    if (diff < 0 && currentSlide === 0)  return;
-    if (diff > 0 && currentSlide === max) return;
-    pfLocked = true;
-    goToSlide(diff > 0 ? currentSlide + 1 : currentSlide - 1);
-    setTimeout(() => { pfLocked = false; }, 650);
-  }, { passive: true });
+  function syncFromScroll() {
+    if (mode !== 'desktop') return;
+    setActive(Math.round(-wrapper.getBoundingClientRect().top / stepHeight()));
+  }
 
-} else {
-  // ── DESKTOP: sticky scroll-lock with wheel ──
-  window.addEventListener('scroll', () => {
-    if (!inPortfolio()) pfWasInside = false;
-  }, { passive: true });
-
-  window.addEventListener('wheel', (e) => {
-    if (!inPortfolio()) return;
-    if (!pfWasInside) {
-      pfWasInside = true; pfLocked = true; e.preventDefault();
-      setTimeout(() => { pfLocked = false; }, 600);
-      return;
-    }
-    const max = portfolioSlides.length - 1;
-    if (e.deltaY < 0 && currentSlide === 0)  return;
-    if (e.deltaY > 0 && currentSlide === max) return;
-    e.preventDefault();
-    if (pfLocked) return;
-    pfLocked = true;
-    const next = e.deltaY > 0 ? currentSlide + 1 : currentSlide - 1;
-    goToSlide(next);
-    pfSnapTo(next);
-    setTimeout(() => { pfLocked = false; }, 1000);
-  }, { passive: false });
-}
-
-// Dot clicks
-portfolioDots.forEach((dot, i) => {
-  dot.addEventListener('click', () => {
-    goToSlide(i);
-    window.scrollTo({ top: pfWrapperTop() + i * window.innerHeight, behavior: IS_MOBILE ? 'instant' : 'smooth' });
+  const syncFromTrack = rafThrottle(() => {
+    if (mode !== 'mobile') return;
+    const w = track.clientWidth;
+    if (w) setActive(Math.round(track.scrollLeft / w));
   });
+  track.addEventListener('scroll', syncFromTrack, { passive: true });
+
+  function goTo(i, smooth = true) {
+    i = clamp(i, 0, slides.length - 1);
+    const behavior = (smooth && !mqReduced.matches) ? 'smooth' : 'auto';
+    if (mode === 'mobile') {
+      track.scrollTo({ left: i * track.clientWidth, behavior });
+    } else {
+      const top = wrapper.getBoundingClientRect().top + window.scrollY + i * stepHeight();
+      window.scrollTo({ top, behavior });
+    }
+    setActive(i);
+  }
+
+  dots.forEach((dot, i) => {
+    if (!dot.getAttribute('aria-label')) dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+    dot.addEventListener('click', () => goTo(i));
+  });
+
+  // Arrow keys work when a dot has focus — keyboard users get the same control.
+  dots.forEach(dot => dot.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); goTo(current - 1); }
+  }));
+
+  // One viewport of real page scroll per slide. Measured in pixels from the
+  // stage rather than written as `calc(N * 100vh)`: the stage is sized in svh,
+  // and on tablets with a collapsing toolbar vh and svh differ, so a vh-based
+  // wrapper would drift further out of step with every slide.
+  function applyDesktopHeight() {
+    wrapper.style.height = (slides.length * stepHeight()) + 'px';
+  }
+
+  function configure(mobile) {
+    const next = mobile ? 'mobile' : 'desktop';
+    if (next === mode) return;
+    mode = next;
+    if (mode === 'desktop') {
+      applyDesktopHeight();
+      track.scrollLeft = 0;
+      syncFromScroll();
+    } else {
+      wrapper.style.height = '';           // CSS drives it (one screen tall)
+      const keep = Math.max(current, 0);
+      current = -1;                        // force class re-application
+      setActive(keep, false);
+      requestAnimationFrame(() => { track.scrollLeft = keep * track.clientWidth; });
+    }
+  }
+
+  configure(isMobile);
+  onBreakpointChange(configure);
+  onScroll(syncFromScroll);
+  // Re-derive after a resize so the slide matches where the page actually sits.
+  window.addEventListener('resize', debounce(() => {
+    if (mode === 'desktop') { applyDesktopHeight(); syncFromScroll(); }
+    else track.scrollLeft = Math.max(current, 0) * track.clientWidth;
+  }, 160), { passive: true });
+
+  return { goTo, setActive, get current() { return current; } };
+}
+
+
+/* ─── Portfolio stage ─── */
+createStage({
+  wrapper: document.getElementById('portfolioWrapper'),
+  stage:   document.getElementById('portfolioStage'),
+  track:   document.getElementById('psTrack'),
+  slides:  Array.from(document.querySelectorAll('.portfolio-slide')),
+  dots:    Array.from(document.querySelectorAll('.pdot')),
 });
 
-// ─── Skills radial scroll ───
+
+/* ─── Skills stage ─── */
 const SKILLS = [
   { cat:{en:'Frontend',  uz:'Frontend'},  name:'HTML / CSS',   pct:80,
     note:{en:'Semantic markup, responsive layouts, CSS animations, Grid & Flexbox.',
@@ -741,106 +809,84 @@ const skArcWrap  = document.getElementById('ssArcWrap');
 const skSlidesEl = document.getElementById('ssSlides');
 
 if (skWrapper && skStage && skArcWrap && skSlidesEl) {
-  // Set wrapper height
-  skWrapper.style.height = SKILLS.length * 100 + 'vh';
 
-  // Build slides
+  // ── Build slides ──
   SKILLS.forEach((sk, i) => {
-    const lang = currentLang;
     const slide = document.createElement('div');
     slide.className = 'ss-slide' + (i === 0 ? ' active' : '');
-    slide.setAttribute('data-index', i);
+    slide.dataset.index = i;
     slide.innerHTML = `
-      <div class="ss-cat">${sk.cat[lang]}</div>
-      <h2 class="ss-name">${sk.name}</h2>
+      <div class="ss-cat"></div>
+      <h3 class="ss-name"></h3>
       <div class="ss-bar-row">
         <div class="ss-bar"><div class="ss-fill" style="--w:${sk.pct}%"></div></div>
         <span class="ss-pct">${sk.pct}%</span>
       </div>
-      <p class="ss-note">${sk.note[lang]}</p>`;
+      <p class="ss-note"></p>`;
+    slide.querySelector('.ss-name').textContent = sk.name;
     skSlidesEl.appendChild(slide);
   });
 
-  // Mobile dot navigation for skills
-  if (IS_MOBILE) {
-    const mobileDots = document.createElement('div');
-    mobileDots.className = 'ss-mobile-dots';
-    SKILLS.forEach((_, i) => {
-      const d = document.createElement('button');
-      d.className = 'ss-mdot' + (i === 0 ? ' active' : '');
-      d.setAttribute('data-index', i);
-      d.addEventListener('click', () => {
-        skGoTo(i);
-        window.scrollTo({ top: skWrapTop() + i * window.innerHeight, behavior: 'smooth' });
-      });
-      mobileDots.appendChild(d);
-    });
-    skStage.appendChild(mobileDots);
-  }
+  // ── Mobile dot navigation (always built; CSS decides when it shows) ──
+  const mobileDots = document.createElement('div');
+  mobileDots.className = 'ss-mobile-dots';
+  SKILLS.forEach((_, i) => {
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = 'ss-mdot' + (i === 0 ? ' active' : '');
+    d.dataset.index = i;
+    d.setAttribute('aria-label', `Skill ${i + 1}`);
+    mobileDots.appendChild(d);
+  });
+  skStage.appendChild(mobileDots);
 
-  // Build arc numbers + dot
-  const arcSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-  arcSvg.setAttribute('class','ss-arc-svg');
-  const arcPath = document.createElementNS('http://www.w3.org/2000/svg','path');
-  arcPath.setAttribute('stroke','rgba(255,255,255,0.1)');
-  arcPath.setAttribute('stroke-width','1');
-  arcPath.setAttribute('fill','none');
+  // ── Arc navigation (desktop) ──
+  const arcSvg  = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  arcSvg.setAttribute('class', 'ss-arc-svg');
+  arcSvg.setAttribute('aria-hidden', 'true');
+  const arcPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arcPath.setAttribute('stroke', 'rgba(255,255,255,0.1)');
+  arcPath.setAttribute('stroke-width', '1');
+  arcPath.setAttribute('fill', 'none');
   arcSvg.appendChild(arcPath);
   skArcWrap.appendChild(arcSvg);
 
-  SKILLS.forEach((_, i) => {
+  const arcNums = SKILLS.map((_, i) => {
     const el = document.createElement('div');
     el.className = 'ss-arc-num';
-    el.setAttribute('data-index', i);
+    el.dataset.index = i;
     el.textContent = String(i + 1).padStart(2, '0');
-    el.addEventListener('click', () => {
-      skGoTo(i);
-      window.scrollTo({ top: skWrapTop() + i * window.innerHeight, behavior: 'smooth' });
-    });
     skArcWrap.appendChild(el);
+    return el;
   });
 
   const arcDot = document.createElement('div');
   arcDot.className = 'ss-arc-dot';
   skArcWrap.appendChild(arcDot);
 
-  // ── Arc geometry ──
-  const R  = 540;    // circle radius
-  const CX = -95;    // circle center X (in arc-wrap coords)
+  const R  = 540;   // circle radius
+  const CX = -95;   // circle centre X, in arc-wrap coordinates
 
   function arcPoint(relStep) {
-    const deg = relStep * 30;
-    const rad = deg * Math.PI / 180;
-    const stageH = skStage.offsetHeight || window.innerHeight;
-    const cy = stageH * 0.5;
-    return {
-      x: CX + R * Math.cos(rad),
-      y: cy + R * Math.sin(rad),
-    };
+    const rad = relStep * 30 * Math.PI / 180;
+    const cy  = (skStage.offsetHeight || window.innerHeight) * 0.5;
+    return { x: CX + R * Math.cos(rad), y: cy + R * Math.sin(rad) };
   }
 
   function updateArc(active) {
-    const nums = skArcWrap.querySelectorAll('.ss-arc-num');
+    if (isMobile) return;
     const stageH = skStage.offsetHeight || window.innerHeight;
-
-    // Keep SVG coordinate system in sync with actual pixel dimensions
     arcSvg.setAttribute('viewBox', `0 0 480 ${stageH}`);
 
-    // SVG arc path — draw portion of circle from first to last visible item
-    const startRel = 0 - active;
-    const endRel   = (SKILLS.length - 1) - active;
-    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    const visStart = clamp(startRel, -5, 5);
-    const visEnd   = clamp(endRel,   -5, 5);
+    const visStart = clamp(0 - active, -5, 5);
+    const visEnd   = clamp((SKILLS.length - 1) - active, -5, 5);
     const p0 = arcPoint(visStart);
     const p1 = arcPoint(visEnd);
-    const sweepDir  = visEnd > visStart ? 1 : 0;
-    const angleDiff = Math.abs(visEnd - visStart) * 30;
-    const largeArc  = angleDiff > 180 ? 1 : 0;
+    const largeArc = Math.abs(visEnd - visStart) * 30 > 180 ? 1 : 0;
     arcPath.setAttribute('d',
-      `M ${p0.x} ${p0.y} A ${R} ${R} 0 ${largeArc} ${sweepDir} ${p1.x} ${p1.y}`);
+      `M ${p0.x} ${p0.y} A ${R} ${R} 0 ${largeArc} ${visEnd > visStart ? 1 : 0} ${p1.x} ${p1.y}`);
 
-    nums.forEach((el, i) => {
+    arcNums.forEach((el, i) => {
       const rel = i - active;
       const absRel = Math.abs(rel);
       const { x, y } = arcPoint(rel);
@@ -857,117 +903,211 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
         + (absRel === 2 ? ' near2'  : '');
     });
 
-    // dot follows active item
     const { x: dx, y: dy } = arcPoint(0);
     arcDot.style.left = (dx + 22) + 'px';
     arcDot.style.top  = dy + 'px';
   }
 
-  // ── Slide switching ──
-  const skSlides = skSlidesEl.querySelectorAll('.ss-slide');
-  let skCurrent = 0;
-  let skLocked  = false;
-  let skWasIn   = false;
+  const skillsStage = createStage({
+    wrapper: skWrapper,
+    stage:   skStage,
+    track:   skSlidesEl,
+    slides:  Array.from(skSlidesEl.querySelectorAll('.ss-slide')),
+    dots:    Array.from(mobileDots.querySelectorAll('.ss-mdot')),
+    onActivate: updateArc,
+  });
 
-  function skWrapTop() {
-    return skWrapper.getBoundingClientRect().top + window.scrollY;
-  }
-  function inSkills() {
-    const top = skWrapTop();
-    const y   = window.scrollY;
-    const ih  = window.innerHeight;
-    return y + 4 >= top && y + ih - 4 <= top + skWrapper.offsetHeight;
-  }
-  function skGoTo(idx) {
-    if (idx === skCurrent) return;
-    skSlides[skCurrent].classList.remove('active');
-    skSlides[skCurrent].classList.add('exited');
-    skSlides[idx].classList.remove('exited');
-    skSlides[idx].classList.add('active');
-    skCurrent = idx;
-    if (!IS_MOBILE) updateArc(idx);
-    skStage.querySelectorAll('.ss-mdot').forEach((d, i) =>
-      d.classList.toggle('active', i === idx));
-  }
+  arcNums.forEach((el, i) => el.addEventListener('click', () => skillsStage.goTo(i)));
+  updateArc(0);
+  window.addEventListener('resize', debounce(() => updateArc(skillsStage.current), 160), { passive: true });
 
-  if (!IS_MOBILE) updateArc(0);
-
-  if (IS_MOBILE) {
-    // ── MOBILE SKILLS ── same pattern as portfolio
-    const sih = window.innerHeight;
-    skWrapper.style.height  = sih + 'px';
-    skStage.style.position  = 'relative';
-    skStage.style.top       = 'auto';
-    skStage.style.height    = sih + 'px';
-
-    window.addEventListener('resize', () => {
-      const nih = window.innerHeight;
-      skWrapper.style.height = nih + 'px';
-      skStage.style.height   = nih + 'px';
-    }, { passive: true });
-
-    let _skTY = null;
-
-    skStage.addEventListener('touchstart', e => {
-      _skTY = e.touches[0].clientY;
-    }, { passive: true });
-
-    skStage.addEventListener('touchmove', e => {
-      e.preventDefault();
-    }, { passive: false });
-
-    skStage.addEventListener('touchend', e => {
-      if (_skTY === null) return;
-      const diff = _skTY - e.changedTouches[0].clientY;
-      _skTY = null;
-      if (Math.abs(diff) < 35 || skLocked) return;
-      const max = SKILLS.length - 1;
-      if (diff < 0 && skCurrent === 0)  return;
-      if (diff > 0 && skCurrent === max) return;
-      skLocked = true;
-      skGoTo(diff > 0 ? skCurrent + 1 : skCurrent - 1);
-      setTimeout(() => { skLocked = false; }, 650);
-    }, { passive: true });
-
-  } else {
-    // ── DESKTOP: sticky scroll-lock with wheel ──
-    window.addEventListener('scroll', () => {
-      if (!inSkills()) skWasIn = false;
-    }, { passive: true });
-
-    window.addEventListener('wheel', (e) => {
-      if (!inSkills()) return;
-      if (!skWasIn) {
-        skWasIn = true; skLocked = true; e.preventDefault();
-        setTimeout(() => { skLocked = false; }, 600);
-        return;
-      }
-      const max = SKILLS.length - 1;
-      if (e.deltaY < 0 && skCurrent === 0)  return;
-      if (e.deltaY > 0 && skCurrent === max) return;
-      e.preventDefault();
-      if (skLocked) return;
-      skLocked = true;
-      const next = e.deltaY > 0 ? skCurrent + 1 : skCurrent - 1;
-      skGoTo(next);
-      window.scrollTo({ top: skWrapTop() + next * window.innerHeight, behavior: 'instant' });
-      setTimeout(() => { skLocked = false; }, 1000);
-    }, { passive: false });
-  }
-
-  // Re-render on language change
-  const _origApplyLang = applyLang;
-  applyLang = function(lang) {
-    _origApplyLang(lang);
-    skSlides.forEach((slide, i) => {
-      slide.querySelector('.ss-cat').textContent  = SKILLS[i].cat[lang];
-      slide.querySelector('.ss-note').textContent = SKILLS[i].note[lang];
+  // Skill copy is data-driven, so it re-renders on a language flip.
+  onLangChange(lang => {
+    const slides = skSlidesEl.querySelectorAll('.ss-slide');
+    slides.forEach((slide, i) => {
+      slide.querySelector('.ss-cat').textContent  = SKILLS[i].cat[lang]  || SKILLS[i].cat.en;
+      slide.querySelector('.ss-note').textContent = SKILLS[i].note[lang] || SKILLS[i].note.en;
     });
-  };
+  });
 }
 
-// ─── Year in footer ───
-const yearEl = document.querySelector('.footer-bottom span:first-child');
-if (yearEl) {
-  yearEl.textContent = yearEl.textContent.replace('2026', new Date().getFullYear());
+
+/* ─── Contact Form ─── */
+const EJS_SERVICE  = 'service_b317zyh';
+const EJS_TEMPLATE = 'template_3w4hisk';
+const EJS_KEY      = 'ClVyIQU-leRs4bEwP';
+const OWNER_EMAIL  = 'mr2009ismoil@gmail.com';
+
+const contactForm = document.getElementById('contactForm');
+
+if (contactForm) {
+  const btn        = document.getElementById('ctBtn');
+  const btnLabel   = btn.querySelector('[data-i18n="form_send"]');
+  const statusEl   = document.getElementById('ctStatus');
+  const fallbackEl = document.getElementById('ctFallback');
+  const mailtoEl   = document.getElementById('ctMailto');
+  const nameEl     = document.getElementById('name');
+  const emailEl    = document.getElementById('email');
+  const messageEl  = document.getElementById('message');
+  const honeypot   = document.getElementById('company');
+
+  // The SDK is loaded from a CDN. It used to be initialised at the top level of
+  // this file, so a blocked or failed CDN threw a ReferenceError that killed
+  // every feature defined below it. Now a missing SDK only costs the form.
+  let emailjsReady = false;
+  function initEmailJS() {
+    if (typeof emailjs === 'undefined') return false;
+    try {
+      emailjs.init({ publicKey: EJS_KEY });     // v4 signature
+      emailjsReady = true;
+    } catch {
+      try { emailjs.init(EJS_KEY); emailjsReady = true; }  // pre-v4 fallback
+      catch { emailjsReady = false; }
+    }
+    return emailjsReady;
+  }
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text || '';
+    statusEl.classList.toggle('ok',    kind === 'ok');
+    statusEl.classList.toggle('error', kind === 'error');
+  }
+
+  function fieldError(input, message) {
+    input.classList.toggle('invalid', Boolean(message));
+    input.setAttribute('aria-invalid', message ? 'true' : 'false');
+    let slot = input.parentElement.querySelector('.ct-field-error');
+    if (!slot) {
+      slot = document.createElement('span');
+      slot.className = 'ct-field-error';
+      input.parentElement.appendChild(slot);
+    }
+    slot.textContent = message || '';
+  }
+
+  // Deliberately permissive: the goal is catching typos, not policing RFC 5322.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  function validate() {
+    let firstBad = null;
+    const email = emailEl.value.trim();
+    const checks = [
+      [nameEl,    nameEl.value.trim().length >= 2,             'form_err_name'],
+      // Email is optional — but if one is typed it still has to be usable,
+      // otherwise a reply would silently bounce.
+      [emailEl,   email === '' || EMAIL_RE.test(email),        'form_err_email'],
+      [messageEl, messageEl.value.trim().length >= 10,         'form_err_message'],
+    ];
+    for (const [el, ok, key] of checks) {
+      fieldError(el, ok ? '' : t(key));
+      if (!ok && !firstBad) firstBad = el;
+    }
+    if (firstBad) firstBad.focus();
+    return !firstBad;
+  }
+
+  // Clear a field's error as soon as the visitor starts fixing it.
+  [nameEl, emailEl, messageEl].forEach(el =>
+    el.addEventListener('input', () => {
+      if (el.classList.contains('invalid')) fieldError(el, '');
+    }));
+
+  function showFallback() {
+    const who   = nameEl.value.trim();
+    const email = emailEl.value.trim();
+    const subject = `Portfolio message from ${who || 'a visitor'}`;
+    const signoff = email ? `${who} (${email})` : who;   // no empty "( )" tail
+    const body    = `${messageEl.value.trim()}\n\n— ${signoff}`;
+    mailtoEl.href = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    fallbackEl.hidden = false;
+  }
+
+  function resetButton(originalLabel) {
+    setTimeout(() => {
+      btnLabel.textContent = originalLabel;
+      btn.classList.remove('is-ok', 'is-error');
+      btn.disabled = false;
+    }, 4000);
+  }
+
+  contactForm.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    // A bot filled the hidden field: act successful, send nothing.
+    if (honeypot && honeypot.value.trim() !== '') {
+      setStatus(t('form_sent_msg'), 'ok');
+      contactForm.reset();
+      return;
+    }
+
+    if (!validate()) {
+      setStatus('', null);
+      return;
+    }
+
+    const originalLabel = t('form_send');
+    btn.disabled = true;
+    btn.classList.remove('is-ok', 'is-error');
+    btnLabel.textContent = t('form_sending');
+    setStatus('', null);
+    fallbackEl.hidden = true;
+
+    if (!emailjsReady && !initEmailJS()) {
+      btnLabel.textContent = t('form_error');
+      btn.classList.add('is-error');
+      setStatus(t('form_error_msg'), 'error');
+      showFallback();
+      resetButton(originalLabel);
+      return;
+    }
+
+    const senderEmail = emailEl.value.trim();
+
+    try {
+      await emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
+        from_name:  nameEl.value.trim(),
+        // Shown in the received mail. English on purpose: it lands in the
+        // owner's inbox, whose template language does not follow the visitor's.
+        from_email: senderEmail || '(no email provided)',
+        // Never send an empty reply_to — EmailJS rejects a blank Reply-To
+        // address. Falling back to the owner keeps the send valid; hitting
+        // Reply then simply goes nowhere new, which is the honest outcome
+        // when the visitor chose not to leave an address.
+        reply_to:   senderEmail || OWNER_EMAIL,
+        message:    messageEl.value.trim(),
+      });
+
+      btnLabel.textContent = t('form_sent');
+      btn.classList.add('is-ok');
+      setStatus(t('form_sent_msg'), 'ok');
+      contactForm.reset();
+      resetButton(originalLabel);
+
+    } catch (err) {
+      // `err` is EmailJS's {status, text}, not an Error instance.
+      console.error('EmailJS send failed:', err && (err.text || err.message || err));
+      btnLabel.textContent = t('form_error');
+      btn.classList.add('is-error');
+      setStatus(t('form_error_msg'), 'error');
+      showFallback();   // the visitor's message is never lost
+      resetButton(originalLabel);
+    }
+  });
+
+  // `defer` on the SDK tag means it is parsed before DOMContentLoaded.
+  document.addEventListener('DOMContentLoaded', initEmailJS);
+}
+
+
+/* ─── Boot ─── */
+function boot() {
+  document.body.classList.add('page-loaded');
+  applyLang(currentLang);
+  updateNav();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
 }

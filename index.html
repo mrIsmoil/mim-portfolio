@@ -2,14 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MIM — Muhammad Ismoil</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>MIM — Muhammad Ismoil | Full Stack Developer</title>
+
+  <meta name="description" content="Muhammad Ismoil (MIM) — 17-year-old full stack developer from Kokand, Uzbekistan. Portfolio of web projects built with JavaScript, Python and Django." />
+  <meta name="author" content="Muhammad Ismoil Muminkhujaev" />
+  <meta name="theme-color" content="#000000" />
+  <!-- TODO: once the live domain is final, add it here and make og:image /
+       twitter:image absolute URLs — some scrapers ignore relative ones:
+       <link rel="canonical" href="https://your-domain.com/" />          -->
+
+
+  <!-- Open Graph / social preview -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="MIM — Muhammad Ismoil | Full Stack Developer" />
+  <meta property="og:description" content="Portfolio of Muhammad Ismoil — full stack developer from Kokand, Uzbekistan." />
+  <meta property="og:image"       content="mim.png" />
+  <meta name="twitter:card"       content="summary_large_image" />
+  <meta name="twitter:title"      content="MIM — Muhammad Ismoil | Full Stack Developer" />
+  <meta name="twitter:description" content="Portfolio of Muhammad Ismoil — full stack developer from Kokand, Uzbekistan." />
+  <meta name="twitter:image"      content="mim.png" />
+
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.cdnfonts.com" crossorigin>
+  <!-- Space Grotesk = real fallback for the display font (it has genuine 400–700 weights,
+       so headings never get browser-synthesised faux-bold). Space Mono = the label/mono face. -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.cdnfonts.com/css/surgena-personal-use-only" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <!-- ?v= is a cache buster: bump it whenever styles.css / script.js change, so
+       returning visitors are not left running a stale copy from disk cache. -->
+  <link rel="stylesheet" href="styles.css?v=4" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" defer></script>
 </head>
 <body>
 
@@ -23,7 +52,10 @@
   <!-- Navigation -->
   <nav class="nav" id="nav">
     <a href="#home" class="nav-logo">
-      <img src="logo.png" alt="MIM" class="nav-logo-img" />
+      <picture>
+        <source srcset="logo.webp" type="image/webp" />
+        <img src="logo.png" alt="MIM — home" class="nav-logo-img" width="500" height="500" decoding="async" />
+      </picture>
     </a>
     <ul class="nav-links" id="navLinks">
       <li><a href="#about"     class="nav-link" data-i18n="nav_about">About</a></li>
@@ -49,11 +81,13 @@
   <div class="mob-menu" id="mobMenu">
     <div class="mob-menu-inner">
       <nav class="mob-nav">
-        <a href="#about"     class="mob-link" data-i18n="nav_about"><span class="mob-num">01</span>About</a>
-        <a href="#portfolio" class="mob-link" data-i18n="nav_portfolio"><span class="mob-num">02</span>Portfolio</a>
-        <a href="#skills"    class="mob-link" data-i18n="nav_skills"><span class="mob-num">03</span>Skills</a>
-        <a href="#channels"  class="mob-link" data-i18n="nav_channels"><span class="mob-num">04</span>Channels</a>
-        <a href="#contact"   class="mob-link" data-i18n="nav_contact"><span class="mob-num">05</span>Contact</a>
+        <!-- The label lives in its own span: applyLang() rewrites innerHTML of
+             [data-i18n] nodes, which would otherwise wipe out .mob-num. -->
+        <a href="#about"     class="mob-link"><span class="mob-num">01</span><span data-i18n="nav_about">About</span></a>
+        <a href="#portfolio" class="mob-link"><span class="mob-num">02</span><span data-i18n="nav_portfolio">Portfolio</span></a>
+        <a href="#skills"    class="mob-link"><span class="mob-num">03</span><span data-i18n="nav_skills">Skills</span></a>
+        <a href="#channels"  class="mob-link"><span class="mob-num">04</span><span data-i18n="nav_channels">Channels</span></a>
+        <a href="#contact"   class="mob-link"><span class="mob-num">05</span><span data-i18n="nav_contact">Contact</span></a>
       </nav>
       <div class="mob-footer">
         <div class="mob-socials">
@@ -61,7 +95,7 @@
           <a href="https://www.youtube.com/@MIM_coder" target="_blank" rel="noopener">YouTube ↗</a>
           <a href="https://github.com/mrIsmoil"        target="_blank" rel="noopener">GitHub ↗</a>
         </div>
-        <span class="mob-copy">© 2026 MIM</span>
+        <span class="mob-copy" data-i18n="mob_copy">© 2026 MIM</span>
       </div>
     </div>
   </div>
@@ -69,7 +103,13 @@
   <!-- Hero Section -->
   <section class="hero" id="home">
     <div class="hero-photo-wrap">
-      <img src="img.png" alt="Muhammad Ismoil" class="hero-photo" />
+      <!-- WebP is 93% smaller than the PNG at visually identical quality; the
+           PNG stays as the fallback for browsers that cannot decode WebP. -->
+      <picture>
+        <source srcset="img.webp" type="image/webp" />
+        <img src="img.png" alt="Portrait of Muhammad Ismoil" class="hero-photo"
+             width="1024" height="1024" decoding="async" fetchpriority="high" />
+      </picture>
     </div>
     <div class="hero-left">
       <div class="hero-badge"><span class="badge-dot"></span><span data-i18n="hero_badge">Available for opportunities</span></div>
@@ -153,6 +193,10 @@
           <button class="pdot" data-index="3"></button>
         </div>
 
+        <!-- Track: transparent on desktop (slides are absolutely positioned),
+             becomes a native horizontal scroll-snap carousel on mobile. -->
+        <div class="ps-track" id="psTrack">
+
         <!-- Slide 01 — Tonsor (Featured) -->
         <div class="portfolio-slide featured active" data-index="0">
           <div class="ps-bg-num">01</div>
@@ -175,8 +219,8 @@
               <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Python</span><span>Django</span>
             </div>
             <div class="ps-links">
-              <a href="https://mim.pythonanywhere.com" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
-              <a href="https://github.com/mrIsmoil/Tonsor" target="_blank" class="ps-link" data-i18n="link_code">Code →</a>
+              <a href="https://mim.pythonanywhere.com" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
+              <a href="https://github.com/mrIsmoil/Tonsor" target="_blank" rel="noopener" class="ps-link" data-i18n="link_code">Code →</a>
             </div>
           </div>
         </div>
@@ -212,8 +256,8 @@
               <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Next.js</span>
             </div>
             <div class="ps-links">
-              <a href="https://uzculture.vercel.app" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
-              <a href="https://github.com/mrIsmoil/uzbek" target="_blank" class="ps-link" data-i18n="link_code">Code →</a>
+              <a href="https://uzculture.vercel.app" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
+              <a href="https://github.com/mrIsmoil/uzbek" target="_blank" rel="noopener" class="ps-link" data-i18n="link_code">Code →</a>
             </div>
           </div>
         </div>
@@ -243,7 +287,7 @@
               <span>HTML</span><span>CSS</span><span>JavaScript</span><span data-i18n="wip_tag">In Progress</span>
             </div>
             <div class="ps-links">
-              <a href="https://mimlogistic.netlify.app" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
+              <a href="https://mimlogistic.netlify.app" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
             </div>
           </div>
         </div>
@@ -271,10 +315,12 @@
               <span>HTML</span><span>CSS</span><span>JavaScript</span>
             </div>
             <div class="ps-links">
-              <a href="https://mimshoping.netlify.app/" target="_blank" class="ps-link" data-i18n="link_live">Live →</a>
+              <a href="https://mimshoping.netlify.app/" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
             </div>
           </div>
         </div>
+
+        </div><!-- /.ps-track -->
 
       </div>
     </div>
@@ -387,20 +433,44 @@
         </div>
 
         <!-- Right: Form -->
-        <form class="ct-form" id="contactForm">
+        <form class="ct-form" id="contactForm" novalidate>
           <div class="ct-field">
-            <label data-i18n="form_name">Name</label>
-            <input type="text" id="name" name="name" data-i18n-placeholder="form_name_ph" placeholder="Your name" required />
+            <label for="name" data-i18n="form_name">Name</label>
+            <input type="text" id="name" name="name" autocomplete="name"
+                   data-i18n-placeholder="form_name_ph" placeholder="Your name" required />
           </div>
           <div class="ct-field">
-            <label data-i18n="form_email">Email</label>
-            <input type="email" id="email" name="email" placeholder="your@email.com" required />
+            <!-- Optional on purpose: a casual "nice site" note should not need an
+                 address, but anyone wanting a reply can still leave one. -->
+            <label for="email">
+              <span data-i18n="form_email">Email</span>
+              <span class="ct-opt" data-i18n="form_optional">optional</span>
+            </label>
+            <input type="email" id="email" name="email" autocomplete="email"
+                   inputmode="email" data-i18n-placeholder="form_email_ph"
+                   placeholder="your@email.com — for a reply" />
           </div>
           <div class="ct-field">
-            <label data-i18n="form_message">Message</label>
-            <textarea id="message" name="message" data-i18n-placeholder="form_message_ph" placeholder="Tell me about your project..." rows="6" required></textarea>
+            <label for="message" data-i18n="form_message">Message</label>
+            <textarea id="message" name="message" data-i18n-placeholder="form_message_ph"
+                      placeholder="Tell me about your project..." rows="6" required></textarea>
           </div>
-          <button type="submit" class="ct-btn" data-i18n="form_send">Send Message →</button>
+
+          <!-- Honeypot: invisible to humans, bots fill it in and get rejected. -->
+          <div class="ct-hp" aria-hidden="true">
+            <label for="company">Company</label>
+            <input type="text" id="company" name="company" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <button type="submit" class="ct-btn" id="ctBtn"><span data-i18n="form_send">Send Message →</span></button>
+
+          <!-- Live status + fallback route so a message is never silently lost. -->
+          <p class="ct-status-msg" id="ctStatus" role="status" aria-live="polite"></p>
+          <div class="ct-fallback" id="ctFallback" hidden>
+            <span data-i18n="form_fallback_lead">Mail service is down — reach me directly:</span>
+            <a id="ctMailto" href="mailto:mr2009ismoil@gmail.com">Email ↗</a>
+            <a href="https://t.me/MIMcoder" target="_blank" rel="noopener">Telegram ↗</a>
+          </div>
         </form>
 
       </div>
@@ -416,7 +486,7 @@
         <!-- Brand -->
         <div class="ft-brand">
           <span class="ft-logo">MIM</span>
-          <p class="ft-tagline">Muhammad Ismoil Muminkhujaev</p>
+          <p class="ft-tagline" data-i18n="footer_brand">Muhammad Ismoil Muminkhujaev</p>
         </div>
 
         <!-- Links -->
@@ -450,6 +520,6 @@
     </div>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=4"></script>
 </body>
 </html>
