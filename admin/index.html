@@ -5,10 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MIM Admin</title>
   <meta name="robots" content="noindex, nofollow" />
-  <link rel="icon" href="../logo.png" type="image/png" />
+  <!-- Absolute paths throughout: Vercel's cleanUrls serves this page at
+       /admin (no trailing slash), so a relative href would resolve against
+       "/" instead of "/admin/" and 404. -->
+  <link rel="icon" href="/logo.png" type="image/png" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../styles.css?v=5" />
-  <link rel="stylesheet" href="admin.css?v=1" />
+  <link rel="stylesheet" href="/styles.css?v=5" />
+  <link rel="stylesheet" href="/admin/admin.css?v=1" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body class="admin-body">
@@ -45,7 +48,7 @@
       <div class="admin-lang">
         <button type="button" id="adminLangEN" class="lang-active">EN</button><span>/</span><button type="button" id="adminLangUZ">UZ</button>
       </div>
-      <a class="admin-view-site" href="../index.html" target="_blank" rel="noopener">View site ↗</a>
+      <a class="admin-view-site" href="/" target="_blank" rel="noopener">View site ↗</a>
       <button type="button" class="admin-signout" id="signOutBtn" data-i18n="sign_out">Sign out</button>
     </aside>
 
@@ -195,6 +198,6 @@
     </div>
   </div>
 
-  <script src="admin.js?v=2" defer></script>
+  <script src="/admin/admin.js?v=2" defer></script>
 </body>
 </html>
