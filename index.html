@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="styles.css?v=4" />
 
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
 
@@ -186,141 +187,13 @@
           <h2 class="section-title" data-i18n="portfolio_title">Portfolio</h2>
         </div>
 
-        <div class="portfolio-dots" id="portfolioDots">
-          <button class="pdot active" data-index="0"></button>
-          <button class="pdot" data-index="1"></button>
-          <button class="pdot" data-index="2"></button>
-          <button class="pdot" data-index="3"></button>
-        </div>
+        <!-- Dots and slides are built at runtime from Supabase `projects`
+             rows by renderFeaturedProjects() in script.js. -->
+        <div class="portfolio-dots" id="portfolioDots"></div>
 
         <!-- Track: transparent on desktop (slides are absolutely positioned),
              becomes a native horizontal scroll-snap carousel on mobile. -->
-        <div class="ps-track" id="psTrack">
-
-        <!-- Slide 01 — Tonsor (Featured) -->
-        <div class="portfolio-slide featured active" data-index="0">
-          <div class="ps-bg-num">01</div>
-          <div class="ps-visual">
-            <div class="ps-img-frame tonsor-frame">
-              <div class="ps-glow" style="--c:123,155,92"></div>
-              <div class="ps-tonsor-preview">
-                <div class="ps-tonsor-label">DEVELOPED BY MIM</div>
-                <div class="ps-tonsor-heading">Pure Mastery.</div>
-                <div class="ps-tonsor-sub">Tonsor — Elite Barber Platform</div>
-                <div class="ps-tonsor-btn">START EXPERIENCE</div>
-              </div>
-            </div>
-          </div>
-          <div class="ps-info">
-            <div class="ps-num">01 / 04</div>
-            <h3 class="ps-title" data-i18n="proj1_title">Tonsor</h3>
-            <p class="ps-desc" data-i18n="proj1_desc">An exclusive digital platform connecting elite barbers with their clients — booking, profiles, and business tools in one place.</p>
-            <div class="ps-tags">
-              <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Python</span><span>Django</span>
-            </div>
-            <div class="ps-links">
-              <a href="https://mim.pythonanywhere.com" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
-              <a href="https://github.com/mrIsmoil/Tonsor" target="_blank" rel="noopener" class="ps-link" data-i18n="link_code">Code →</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Slide 02 — O'zbekiston -->
-        <div class="portfolio-slide" data-index="1">
-          <div class="ps-bg-num">02</div>
-          <div class="ps-visual">
-            <div class="ps-img-frame uzbek-frame">
-              <div class="ps-glow" style="--c:0,120,200"></div>
-              <div class="ps-uzbek-preview">
-                <div class="ps-uzbek-flag-stripe"></div>
-                <div class="ps-uzbek-body">
-                  <div class="ps-uzbek-crescent">
-                    <div class="ps-uzbek-moon"></div>
-                    <div class="ps-uzbek-stars">
-                      <span></span><span></span><span></span>
-                      <span></span><span></span><span></span>
-                    </div>
-                  </div>
-                  <div class="ps-uzbek-label">MARKAZIY OSIYO · 1991</div>
-                  <div class="ps-uzbek-heading">O'ZBEKISTON</div>
-                  <div class="ps-uzbek-tagline">BIR XALQ · BIR TARIX · BIR KELAJAK</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="ps-info">
-            <div class="ps-num">02 / 04</div>
-            <h3 class="ps-title" data-i18n="proj2_title">O'zbekiston</h3>
-            <p class="ps-desc" data-i18n="proj2_desc">An immersive web experience showcasing the history, culture, and regions of Uzbekistan — built with cinematic design.</p>
-            <div class="ps-tags">
-              <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Next.js</span>
-            </div>
-            <div class="ps-links">
-              <a href="https://uzculture.vercel.app" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
-              <a href="https://github.com/mrIsmoil/uzbek" target="_blank" rel="noopener" class="ps-link" data-i18n="link_code">Code →</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Slide 03 — MIM Logistic -->
-        <div class="portfolio-slide" data-index="2">
-          <div class="ps-bg-num">03</div>
-          <div class="ps-visual">
-            <div class="ps-img-frame logistic-frame">
-              <div class="ps-glow" style="--c:255,160,40"></div>
-              <div class="ps-logistic-preview">
-                <div class="ps-logistic-grid"></div>
-                <div class="ps-logistic-content">
-                  <div class="ps-logistic-label">LOGISTICS · DELIVERY</div>
-                  <div class="ps-logistic-heading">MIM<span>LOGISTIC</span></div>
-                  <div class="ps-logistic-sub">Fast · Reliable · Global</div>
-                  <div class="ps-logistic-wip">⚡ In Progress</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="ps-info">
-            <div class="ps-num">03 / 04</div>
-            <h3 class="ps-title" data-i18n="proj3_title">MIM Logistic</h3>
-            <p class="ps-desc" data-i18n="proj3_desc">A professional website for logistics companies — clean design with tracking, routing, and service showcase features.</p>
-            <div class="ps-tags">
-              <span>HTML</span><span>CSS</span><span>JavaScript</span><span data-i18n="wip_tag">In Progress</span>
-            </div>
-            <div class="ps-links">
-              <a href="https://mimlogistic.netlify.app" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Slide 04 — Maison Aura -->
-        <div class="portfolio-slide" data-index="3">
-          <div class="ps-bg-num">04</div>
-          <div class="ps-visual">
-            <div class="ps-img-frame aura-frame">
-              <div class="ps-glow" style="--c:210,175,120"></div>
-              <div class="ps-aura-preview">
-                <div class="ps-aura-overline">COLLECTION 2025</div>
-                <div class="ps-aura-brand">MAISON<br>AURA</div>
-                <div class="ps-aura-tagline">Luxury Online Boutique</div>
-                <div class="ps-aura-divider"></div>
-                <div class="ps-aura-sub">SHOP · DISCOVER · ELEVATE</div>
-              </div>
-            </div>
-          </div>
-          <div class="ps-info">
-            <div class="ps-num">04 / 04</div>
-            <h3 class="ps-title" data-i18n="proj4_title">Maison Aura</h3>
-            <p class="ps-desc" data-i18n="proj4_desc">A classic-style online boutique with luxury aesthetics — elegant product showcase, smooth UI, and refined shopping experience.</p>
-            <div class="ps-tags">
-              <span>HTML</span><span>CSS</span><span>JavaScript</span>
-            </div>
-            <div class="ps-links">
-              <a href="https://mimshoping.netlify.app/" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>
-            </div>
-          </div>
-        </div>
-
-        </div><!-- /.ps-track -->
+        <div class="ps-track" id="psTrack"></div><!-- /.ps-track -->
 
       </div>
     </div>

@@ -491,15 +491,6 @@ const translations = {
     stat_ideas:          'Ideas',
     card_role:           'Developer & Creator',
     portfolio_title:     'Portfolio',
-    proj1_title:         'Tonsor',
-    proj1_desc:          'An exclusive digital platform connecting elite barbers with their clients — booking, profiles, and business tools in one place.',
-    proj2_title:         "O'zbekiston",
-    proj2_desc:          'An immersive web experience showcasing the history, culture, and regions of Uzbekistan — built with cinematic design.',
-    proj3_title:         'MIM Logistic',
-    proj3_desc:          'A professional website for logistics companies — clean design with tracking, routing, and service showcase features.',
-    wip_tag:             'In Progress',
-    proj4_title:         'Maison Aura',
-    proj4_desc:          'A classic-style online boutique with luxury aesthetics — elegant product showcase, smooth UI, and refined shopping experience.',
     link_live:           'Live →',
     link_code:           'Code →',
     skills_title:        'Skills',
@@ -557,15 +548,6 @@ const translations = {
     stat_ideas:          "G'oyalar",
     card_role:           'Dasturchi va Ijodkor',
     portfolio_title:     'Portfolio',
-    proj1_title:         'Tonsor',
-    proj1_desc:          "Sartaroshlar va ularning mijozlarini bog'lovchi eksklyuziv raqamli platforma — bron qilish, profil va biznes vositalari bir joyda.",
-    proj2_title:         "O'zbekiston",
-    proj2_desc:          "O'zbekistonning tarixi, madaniyati va hududlarini kinematografik dizayn bilan taqdim etuvchi veb-tajriba.",
-    proj3_title:         'MIM Logistic',
-    proj3_desc:          "Logistika kompaniyalari uchun professional veb-sayt — yuk kuzatish, marshrutlash va xizmatlarni namoyish qilish.",
-    wip_tag:             'Jarayonda',
-    proj4_title:         'Maison Aura',
-    proj4_desc:          "Klassik uslubdagi onlayn butik — elegantlik, silliq interfeys va professional xarid tajribasi.",
     link_live:           "Ko'rish →",
     link_code:           'Kod →',
     skills_title:        "Ko'nikmalar",
@@ -759,56 +741,181 @@ function createStage({ wrapper, stage, track, slides, dots, onActivate }) {
 }
 
 
-/* ─── Portfolio stage ─── */
-createStage({
-  wrapper: document.getElementById('portfolioWrapper'),
-  stage:   document.getElementById('portfolioStage'),
-  track:   document.getElementById('psTrack'),
-  slides:  Array.from(document.querySelectorAll('.portfolio-slide')),
-  dots:    Array.from(document.querySelectorAll('.pdot')),
-});
+/* ─── Supabase ───
+   The anon/publishable key is meant to be public — same trust model already
+   used for the EmailJS key above. The real security boundary is Row Level
+   Security on the database side (see supabase/schema.sql), not secrecy of
+   this key. */
+const SUPABASE_URL = 'https://kbdagyzgyufbpvtsubhh.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_A5EJdvR7OxKfkLf0wpsu1g_3bvX0kbN';
+
+function getSupabaseClient() {
+  if (typeof supabase === 'undefined') return null;
+  try { return supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY); }
+  catch { return null; }
+}
 
 
-/* ─── Skills stage ─── */
-const SKILLS = [
-  { cat:{en:'Frontend',  uz:'Frontend'},  name:'HTML / CSS',   pct:80,
-    note:{en:'Semantic markup, responsive layouts, CSS animations, Grid & Flexbox.',
-          uz:'Semantik belgilash, moslashuvchan layout, CSS animatsiyalar.'} },
-  { cat:{en:'Frontend',  uz:'Frontend'},  name:'JavaScript',   pct:40,
-    note:{en:'ES6+, DOM manipulation, async/await and modern JS patterns.',
-          uz:'ES6+, DOM boshqaruvi, async/await va zamonaviy JS usullari.'} },
-  { cat:{en:'Frontend',  uz:'Frontend'},  name:'React',        pct:10,
-    note:{en:'Component architecture, hooks, state management & routing.',
-          uz:'Komponent arxitekturasi, hooklar va holat boshqaruvi.'} },
-  { cat:{en:'Backend',   uz:'Backend'},   name:'Python',       pct:50,
-    note:{en:'Scripting, automation, data processing and backend development.',
-          uz:'Skriptlar, avtomatlashtirish va backend dasturlash.'} },
-  { cat:{en:'Backend',   uz:'Backend'},   name:'Django',       pct:90,
-    note:{en:'Full-stack web framework — models, views, templates, REST APIs.',
-          uz:"To'liq stekli freymvork — modellar, ko'rinishlar, REST API."} },
-  { cat:{en:'Tools',     uz:'Asboblar'},  name:'Git / GitHub', pct:65,
-    note:{en:'Version control, branching, CI/CD workflows and pull requests.',
-          uz:'Versiya nazorati, tarmoqlash, CI/CD va pull requestlar.'} },
-  { cat:{en:'Languages', uz:'Tillar'},    name:'English',      pct:90,
-    note:{en:'Fluent in reading, writing, and speaking — primary working language.',
-          uz:"O'qish, yozish va gaplashishda ravon — asosiy ish tili."} },
-  { cat:{en:'Languages', uz:'Tillar'},    name:'Russian',      pct:10,
-    note:{en:'Basic understanding — can follow simple conversations.',
-          uz:"Boshlang'ich daraja — oddiy suhbatlarni tushuna olaman."} },
-  { cat:{en:'Languages', uz:'Tillar'},    name:'French',       pct:10,
-    note:{en:'Beginner level — learning the fundamentals.',
-          uz:"Boshlang'ich daraja — asoslarni o'rganmoqdaman."} },
-  { cat:{en:'Hobby',     uz:'Qiziqish'},  name:'Chess',        pct:50,
-    note:{en:'Strategic thinking, pattern recognition and competitive play.',
-          uz:"Strategik fikrlash, naqshlarni tanish va musobaqa o'yinlari."} },
-];
+/* ─── Portfolio stage — built from Supabase `projects` rows ───
+   Four legacy projects (seeded before any admin panel existed) still use
+   their original hand-built CSS illustrations, keyed by slug, since they
+   don't have an uploaded screenshot yet. The moment a project's admin-set
+   cover_image_url is filled in, buildProjectVisual() below switches to a
+   real <img> automatically — no code change needed. */
+const LEGACY_PREVIEW_HTML = {
+  tonsor: `
+    <div class="ps-glow" style="--c:123,155,92"></div>
+    <div class="ps-tonsor-preview">
+      <div class="ps-tonsor-label">DEVELOPED BY MIM</div>
+      <div class="ps-tonsor-heading">Pure Mastery.</div>
+      <div class="ps-tonsor-sub">Tonsor — Elite Barber Platform</div>
+      <div class="ps-tonsor-btn">START EXPERIENCE</div>
+    </div>`,
+  ozbekiston: `
+    <div class="ps-glow" style="--c:0,120,200"></div>
+    <div class="ps-uzbek-preview">
+      <div class="ps-uzbek-flag-stripe"></div>
+      <div class="ps-uzbek-body">
+        <div class="ps-uzbek-crescent">
+          <div class="ps-uzbek-moon"></div>
+          <div class="ps-uzbek-stars">
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="ps-uzbek-label">MARKAZIY OSIYO · 1991</div>
+        <div class="ps-uzbek-heading">O'ZBEKISTON</div>
+        <div class="ps-uzbek-tagline">BIR XALQ · BIR TARIX · BIR KELAJAK</div>
+      </div>
+    </div>`,
+  'mim-logistic': `
+    <div class="ps-glow" style="--c:255,160,40"></div>
+    <div class="ps-logistic-preview">
+      <div class="ps-logistic-grid"></div>
+      <div class="ps-logistic-content">
+        <div class="ps-logistic-label">LOGISTICS · DELIVERY</div>
+        <div class="ps-logistic-heading">MIM<span>LOGISTIC</span></div>
+        <div class="ps-logistic-sub">Fast · Reliable · Global</div>
+        <div class="ps-logistic-wip">⚡ In Progress</div>
+      </div>
+    </div>`,
+  'maison-aura': `
+    <div class="ps-glow" style="--c:210,175,120"></div>
+    <div class="ps-aura-preview">
+      <div class="ps-aura-overline">COLLECTION 2025</div>
+      <div class="ps-aura-brand">MAISON<br>AURA</div>
+      <div class="ps-aura-tagline">Luxury Online Boutique</div>
+      <div class="ps-aura-divider"></div>
+      <div class="ps-aura-sub">SHOP · DISCOVER · ELEVATE</div>
+    </div>`,
+};
+// Tonsor's dark-frame CSS override only fires together with the `.featured`
+// class on the slide (styles.css:1097-1106) — reproduced in buildProjectSlide.
+const LEGACY_FRAME_CLASS = {
+  tonsor: 'tonsor-frame',
+  ozbekiston: 'uzbek-frame',
+  'mim-logistic': 'logistic-frame',
+  'maison-aura': 'aura-frame',
+};
 
-const skWrapper  = document.getElementById('skillsWrapper');
-const skStage    = document.getElementById('skillsStage');
-const skArcWrap  = document.getElementById('ssArcWrap');
-const skSlidesEl = document.getElementById('ssSlides');
+function buildProjectVisual(p) {
+  const frame = document.createElement('div');
+  frame.className = 'ps-img-frame';
+  if (p.cover_image_url) {
+    frame.innerHTML = `<img class="ps-project-img" src="${p.cover_image_url}" alt="${p.title_en} screenshot" loading="lazy" />`;
+  } else if (LEGACY_PREVIEW_HTML[p.slug]) {
+    frame.classList.add(LEGACY_FRAME_CLASS[p.slug]);
+    frame.innerHTML = LEGACY_PREVIEW_HTML[p.slug];
+  } else {
+    frame.innerHTML = `<span class="ps-placeholder">${(p.category || 'PROJECT').toUpperCase()}</span>`;
+  }
+  return frame;
+}
 
-if (skWrapper && skStage && skArcWrap && skSlidesEl) {
+function buildProjectSlide(p, i, total) {
+  const slide = document.createElement('div');
+  slide.className = 'portfolio-slide' + (p.slug === 'tonsor' ? ' featured' : '');
+  slide.dataset.index = i;
+
+  const bgNum = document.createElement('div');
+  bgNum.className = 'ps-bg-num';
+  bgNum.textContent = String(i + 1).padStart(2, '0');
+
+  const visual = document.createElement('div');
+  visual.className = 'ps-visual';
+  visual.appendChild(buildProjectVisual(p));
+
+  const info = document.createElement('div');
+  info.className = 'ps-info';
+  const links = [];
+  if (p.live_url) links.push(`<a href="${p.live_url}" target="_blank" rel="noopener" class="ps-link" data-i18n="link_live">Live →</a>`);
+  if (p.code_url) links.push(`<a href="${p.code_url}" target="_blank" rel="noopener" class="ps-link" data-i18n="link_code">Code →</a>`);
+  info.innerHTML = `
+    <div class="ps-num">${String(i + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}</div>
+    <h3 class="ps-title"></h3>
+    <p class="ps-desc"></p>
+    <div class="ps-tags">${(p.tech_tags || []).map(tag => `<span>${tag}</span>`).join('')}</div>
+    <div class="ps-links">${links.join('')}</div>`;
+
+  slide.append(bgNum, visual, info);
+  return slide;
+}
+
+function renderFeaturedProjects(rows) {
+  const track = document.getElementById('psTrack');
+  const dotsEl = document.getElementById('portfolioDots');
+  if (!track || !dotsEl || !rows.length) return;
+
+  track.innerHTML = '';
+  dotsEl.innerHTML = '';
+
+  rows.forEach((p, i) => {
+    track.appendChild(buildProjectSlide(p, i, rows.length));
+    const dot = document.createElement('button');
+    dot.className = 'pdot' + (i === 0 ? ' active' : '');
+    dot.dataset.index = i;
+    dotsEl.appendChild(dot);
+  });
+
+  const slideEls = Array.from(track.querySelectorAll('.portfolio-slide'));
+
+  // Titles/descriptions are DB strings, not translations-dict keys, so they
+  // re-render on a language flip the same way skill copy does below.
+  const setProjectText = lang => {
+    slideEls.forEach((el, i) => {
+      const p = rows[i];
+      el.querySelector('.ps-title').textContent = lang === 'uz' ? p.title_uz : p.title_en;
+      el.querySelector('.ps-desc').textContent  = (lang === 'uz' ? p.summary_uz : p.summary_en) || '';
+    });
+  };
+  setProjectText(currentLang);
+  onLangChange(setProjectText);
+
+  createStage({
+    wrapper: document.getElementById('portfolioWrapper'),
+    stage:   document.getElementById('portfolioStage'),
+    track,
+    slides:  slideEls,
+    dots:    Array.from(dotsEl.querySelectorAll('.pdot')),
+  });
+}
+
+
+/* ─── Skills stage — built from Supabase `skills` rows ─── */
+function renderSkills(rows) {
+  const SKILLS = rows.map(r => ({
+    cat:  { en: r.category_en, uz: r.category_uz },
+    name: r.name,
+    pct:  r.proficiency_pct,
+    note: { en: r.note_en, uz: r.note_uz },
+  }));
+
+  const skWrapper  = document.getElementById('skillsWrapper');
+  const skStage    = document.getElementById('skillsStage');
+  const skArcWrap  = document.getElementById('ssArcWrap');
+  const skSlidesEl = document.getElementById('ssSlides');
+
+  if (skWrapper && skStage && skArcWrap && skSlidesEl && SKILLS.length) {
 
   // ── Build slides ──
   SKILLS.forEach((sk, i) => {
@@ -929,6 +1036,32 @@ if (skWrapper && skStage && skArcWrap && skSlidesEl) {
       slide.querySelector('.ss-note').textContent = SKILLS[i].note[lang] || SKILLS[i].note.en;
     });
   });
+  }
+}
+
+
+/* ─── Load projects + skills from Supabase ─── */
+async function initDynamicContent() {
+  const sb = getSupabaseClient();
+  if (!sb) {
+    console.error('Supabase unavailable — skills and portfolio will not load.');
+    return;
+  }
+
+  const [skillsRes, projectsRes] = await Promise.all([
+    sb.from('skills').select('*').order('sort_order'),
+    sb.from('projects').select('*').eq('is_published', true).eq('featured', true).order('sort_order'),
+  ]);
+
+  if (skillsRes.error) console.error('Skills fetch failed:', skillsRes.error.message);
+  else renderSkills(skillsRes.data);
+
+  if (projectsRes.error) console.error('Projects fetch failed:', projectsRes.error.message);
+  else renderFeaturedProjects(projectsRes.data);
+
+  // Populate any [data-i18n] elements created just now (e.g. the ps-link
+  // labels built above) — applyLang() is an idempotent full-DOM rescan.
+  applyLang(currentLang);
 }
 
 
@@ -1104,6 +1237,7 @@ function boot() {
   document.body.classList.add('page-loaded');
   applyLang(currentLang);
   updateNav();
+  initDynamicContent();   // async, fire-and-forget — static UI never waits on it
 }
 
 if (document.readyState === 'loading') {
