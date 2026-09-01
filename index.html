@@ -36,7 +36,7 @@
 
   <!-- ?v= is a cache buster: bump it whenever styles.css / script.js change, so
        returning visitors are not left running a stale copy from disk cache. -->
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -196,6 +196,19 @@
         <div class="ps-track" id="psTrack"></div><!-- /.ps-track -->
 
       </div>
+    </div>
+  </section>
+
+  <!-- More Projects (filterable grid, non-featured published projects) -->
+  <section class="section proj-grid-section" id="all-projects">
+    <div class="container">
+      <div class="proj-grid-header">
+        <h2 class="proj-grid-title" data-i18n="more_projects_title">More Projects</h2>
+        <div class="proj-filters" id="projFilters"></div>
+      </div>
+      <div class="proj-grid" id="projGrid"></div>
+      <button type="button" class="proj-load-more" id="projLoadMore" data-i18n="load_more" hidden>Load more</button>
+      <p class="proj-empty" id="projEmpty" data-i18n="no_more_projects" hidden>More projects coming soon.</p>
     </div>
   </section>
 
@@ -393,6 +406,95 @@
     </div>
   </footer>
 
-  <script src="script.js?v=4"></script>
+  <!-- Hire-me floating CTA -->
+  <button type="button" class="hire-fab" id="hireFab">
+    <span data-i18n="hire_fab">Hire Me</span><span>→</span>
+  </button>
+
+  <!-- Project detail modal (opened from a "More Projects" card) -->
+  <div class="modal-overlay" id="projectModal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+      <button type="button" class="modal-close" id="projectModalClose" aria-label="Close">×</button>
+      <div class="pm-visual" id="pmVisual"></div>
+      <div class="pm-cat" id="pmCat"></div>
+      <h3 class="pm-title" id="pmTitle"></h3>
+      <p class="pm-desc" id="pmDesc"></p>
+      <div class="pm-tags" id="pmTags"></div>
+      <div class="pm-actions">
+        <a class="ps-link" id="pmLive" target="_blank" rel="noopener" data-i18n="link_live" hidden>Live →</a>
+        <a class="ps-link" id="pmCode" target="_blank" rel="noopener" data-i18n="link_code" hidden>Code →</a>
+        <button type="button" class="btn btn-primary" id="pmHireBtn"><span data-i18n="want_like_this">Want something like this →</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hire-me modal -->
+  <div class="modal-overlay" id="hireModal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="hireModalTitle">
+      <button type="button" class="modal-close" id="hireModalClose" aria-label="Close">×</button>
+      <h3 class="ct-heading" id="hireModalTitle" data-i18n="hire_modal_title">Start a project</h3>
+      <p class="ct-sub" id="hireRefNote" hidden></p>
+      <form class="ct-form" id="hireForm" novalidate>
+        <div class="ct-field">
+          <label for="hireName" data-i18n="form_name">Name</label>
+          <input type="text" id="hireName" name="name" autocomplete="name" required />
+        </div>
+        <div class="ct-field">
+          <label for="hireEmail" data-i18n="form_email">Email</label>
+          <input type="email" id="hireEmail" name="email" autocomplete="email" inputmode="email" required />
+        </div>
+        <div class="ct-field">
+          <label for="hireType" data-i18n="hire_project_type">Project type</label>
+          <select id="hireType" name="project_type">
+            <option value="Business site" data-i18n="hire_type_business">Business site</option>
+            <option value="E-commerce" data-i18n="hire_type_ecommerce">E-commerce</option>
+            <option value="Web app" data-i18n="hire_type_webapp">Web app</option>
+            <option value="Landing page" data-i18n="hire_type_landing">Landing page</option>
+            <option value="Other" data-i18n="hire_type_other">Other</option>
+          </select>
+        </div>
+        <div class="ct-field">
+          <label for="hireMessage" data-i18n="form_message">Message</label>
+          <textarea id="hireMessage" name="message" rows="5" required></textarea>
+        </div>
+        <div class="ct-field">
+          <label for="hireBudget">
+            <span data-i18n="hire_budget">Budget</span>
+            <span class="ct-opt" data-i18n="form_optional">optional</span>
+          </label>
+          <select id="hireBudget" name="budget">
+            <option value="" data-i18n="hire_budget_unset">Not sure yet</option>
+            <option value="< $200">&lt; $200</option>
+            <option value="$200 - $500">$200 – $500</option>
+            <option value="$500 - $1000">$500 – $1000</option>
+            <option value="$1000+">$1000+</option>
+          </select>
+        </div>
+        <div class="ct-field">
+          <label for="hireTimeline">
+            <span data-i18n="hire_timeline">Timeline</span>
+            <span class="ct-opt" data-i18n="form_optional">optional</span>
+          </label>
+          <select id="hireTimeline" name="timeline">
+            <option value="" data-i18n="hire_timeline_unset">Flexible</option>
+            <option value="ASAP" data-i18n="hire_timeline_asap">As soon as possible</option>
+            <option value="1-2 weeks" data-i18n="hire_timeline_2w">1-2 weeks</option>
+            <option value="1 month+" data-i18n="hire_timeline_1m">1 month+</option>
+          </select>
+        </div>
+
+        <!-- Honeypot: invisible to humans, bots fill it in and get rejected. -->
+        <div class="ct-hp" aria-hidden="true">
+          <label for="hireCompany">Company</label>
+          <input type="text" id="hireCompany" name="company" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <button type="submit" class="ct-btn" id="hireBtn"><span data-i18n="hire_send">Send request →</span></button>
+        <p class="ct-status-msg" id="hireStatus" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js?v=5"></script>
 </body>
 </html>

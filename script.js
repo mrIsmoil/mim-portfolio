@@ -428,12 +428,13 @@ const revealTargets = Array.from(document.querySelectorAll(
 // `.reveal` starts at opacity:0, so anything that stops the reveal from running
 // leaves whole sections permanently invisible. Only opt in to the animation
 // when we can guarantee an element will be un-hidden again.
+const revealPending = new Set(revealTargets);
+let revealObserver = null;
+
 if ('IntersectionObserver' in window && !mqReduced.matches) {
-  const pending = new Set(revealTargets);
+  const show = el => { el.classList.add('visible'); revealPending.delete(el); };
 
-  const show = el => { el.classList.add('visible'); pending.delete(el); };
-
-  const revealObserver = new IntersectionObserver(entries => {
+  revealObserver = new IntersectionObserver(entries => {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         show(entry.target);
@@ -454,8 +455,8 @@ if ('IntersectionObserver' in window && !mqReduced.matches) {
   // content further down keeps its entrance animation, and it unhooks itself
   // once every target has been shown.
   function revealWhatIsOnScreen() {
-    if (!pending.size) return;
-    for (const el of Array.from(pending)) {
+    if (!revealPending.size) return;
+    for (const el of Array.from(revealPending)) {
       // Anything whose top has crossed the bottom edge has been reached —
       // including things already scrolled past, which must never stay hidden.
       if (el.getBoundingClientRect().top < window.innerHeight) {
@@ -466,6 +467,16 @@ if ('IntersectionObserver' in window && !mqReduced.matches) {
   }
   onScroll(revealWhatIsOnScreen);
   setTimeout(revealWhatIsOnScreen, 1200);
+}
+
+// Lets content built after the fact (project grid cards, populated once
+// their data arrives from Supabase) opt into the same reveal animation the
+// static targets above get — they don't exist yet when this file first runs.
+function observeReveal(el) {
+  el.classList.add('reveal');
+  if (!revealObserver) { el.classList.add('visible'); return; }
+  revealPending.add(el);
+  revealObserver.observe(el);
 }
 
 
@@ -493,6 +504,31 @@ const translations = {
     portfolio_title:     'Portfolio',
     link_live:           'Live →',
     link_code:           'Code →',
+    more_projects_title: 'More Projects',
+    filter_all:          'All',
+    load_more:           'Load more',
+    no_more_projects:    'More projects coming soon.',
+    want_like_this:      'Want something like this →',
+    hire_fab:             'Hire Me',
+    hire_modal_title:    'Start a project',
+    hire_ref_lead:       'Request inspired by',
+    hire_project_type:   'Project type',
+    hire_type_business:  'Business site',
+    hire_type_ecommerce: 'E-commerce',
+    hire_type_webapp:    'Web app',
+    hire_type_landing:   'Landing page',
+    hire_type_other:     'Other',
+    hire_budget:         'Budget',
+    hire_budget_unset:   'Not sure yet',
+    hire_timeline:       'Timeline',
+    hire_timeline_unset: 'Flexible',
+    hire_timeline_asap:  'As soon as possible',
+    hire_timeline_2w:    '1–2 weeks',
+    hire_timeline_1m:    '1 month+',
+    hire_send:           'Send request →',
+    hire_sent:           'Request sent ✓',
+    hire_sent_msg:       "Thanks — I'll get back to you within a day.",
+    hire_error_msg:      'Could not send — please try the contact form below instead.',
     skills_title:        'Skills',
     channels_title:      'Channels',
     channels_lead:       'Find me across the internet. Follow along for content, updates, and behind-the-scenes.',
@@ -550,6 +586,31 @@ const translations = {
     portfolio_title:     'Portfolio',
     link_live:           "Ko'rish →",
     link_code:           'Kod →',
+    more_projects_title: 'Boshqa loyihalar',
+    filter_all:          'Hammasi',
+    load_more:           "Yana ko'rsatish",
+    no_more_projects:    'Tez orada yangi loyihalar qo\'shiladi.',
+    want_like_this:      'Shunga o\'xshash loyiha xohlayman →',
+    hire_fab:             'Buyurtma berish',
+    hire_modal_title:    'Loyiha boshlash',
+    hire_ref_lead:       'Ilhomlangan loyiha',
+    hire_project_type:   'Loyiha turi',
+    hire_type_business:  'Biznes sayti',
+    hire_type_ecommerce: 'Onlayn do\'kon',
+    hire_type_webapp:    'Veb-ilova',
+    hire_type_landing:   'Landing sahifa',
+    hire_type_other:     'Boshqa',
+    hire_budget:         'Byudjet',
+    hire_budget_unset:   'Hali aniq emas',
+    hire_timeline:       'Muddat',
+    hire_timeline_unset: 'Moslashuvchan',
+    hire_timeline_asap:  'Imkon qadar tezroq',
+    hire_timeline_2w:    '1–2 hafta',
+    hire_timeline_1m:    "1 oy+",
+    hire_send:           'Yuborish →',
+    hire_sent:           'Yuborildi ✓',
+    hire_sent_msg:       "Rahmat — bir kun ichida javob beraman.",
+    hire_error_msg:      "Yuborilmadi — pastdagi Contact formasidan foydalaning.",
     skills_title:        "Ko'nikmalar",
     channels_title:      'Kanallar',
     channels_lead:       "Meni internetda toping. Kontent, yangiliklar va sahna ortidan xabardor bo'lib turing.",
@@ -755,6 +816,54 @@ function getSupabaseClient() {
   catch { return null; }
 }
 
+// Project text is now admin-editable DB content, not developer-written
+// literals, so anything interpolated into innerHTML gets escaped.
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
+
+
+/* ─── Shared form helpers — used by both the contact form and the
+   hire-me form below ─── */
+const EJS_SERVICE  = 'service_b317zyh';
+const EJS_TEMPLATE = 'template_3w4hisk';
+const EJS_KEY      = 'ClVyIQU-leRs4bEwP';
+const OWNER_EMAIL  = 'mr2009ismoil@gmail.com';
+
+// The SDK is loaded from a CDN. A blocked or failed CDN must only cost the
+// forms that need it, not the rest of the page.
+let emailjsReady = false;
+function initEmailJS() {
+  if (typeof emailjs === 'undefined') return false;
+  try {
+    emailjs.init({ publicKey: EJS_KEY });     // v4 signature
+    emailjsReady = true;
+  } catch {
+    try { emailjs.init(EJS_KEY); emailjsReady = true; }  // pre-v4 fallback
+    catch { emailjsReady = false; }
+  }
+  return emailjsReady;
+}
+// `defer` on the SDK tag means it is parsed before DOMContentLoaded.
+document.addEventListener('DOMContentLoaded', initEmailJS);
+
+// Deliberately permissive: the goal is catching typos, not policing RFC 5322.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function fieldError(input, message) {
+  input.classList.toggle('invalid', Boolean(message));
+  input.setAttribute('aria-invalid', message ? 'true' : 'false');
+  let slot = input.parentElement.querySelector('.ct-field-error');
+  if (!slot) {
+    slot = document.createElement('span');
+    slot.className = 'ct-field-error';
+    input.parentElement.appendChild(slot);
+  }
+  slot.textContent = message || '';
+}
+
 
 /* ─── Portfolio stage — built from Supabase `projects` rows ───
    Four legacy projects (seeded before any admin panel existed) still use
@@ -827,7 +936,7 @@ function buildProjectVisual(p) {
     frame.classList.add(LEGACY_FRAME_CLASS[p.slug]);
     frame.innerHTML = LEGACY_PREVIEW_HTML[p.slug];
   } else {
-    frame.innerHTML = `<span class="ps-placeholder">${(p.category || 'PROJECT').toUpperCase()}</span>`;
+    frame.innerHTML = `<span class="ps-placeholder">${escapeHtml((p.category || 'PROJECT').toUpperCase())}</span>`;
   }
   return frame;
 }
@@ -854,8 +963,12 @@ function buildProjectSlide(p, i, total) {
     <div class="ps-num">${String(i + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}</div>
     <h3 class="ps-title"></h3>
     <p class="ps-desc"></p>
-    <div class="ps-tags">${(p.tech_tags || []).map(tag => `<span>${tag}</span>`).join('')}</div>
-    <div class="ps-links">${links.join('')}</div>`;
+    <div class="ps-tags">${(p.tech_tags || []).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>
+    <div class="ps-links">
+      ${links.join('')}
+      <button type="button" class="ps-link ps-hire-link" data-i18n="want_like_this">Want something like this →</button>
+    </div>`;
+  info.querySelector('.ps-hire-link').addEventListener('click', () => openHireModal(p));
 
   slide.append(bgNum, visual, info);
   return slide;
@@ -1040,6 +1153,299 @@ function renderSkills(rows) {
 }
 
 
+/* ─── Modal helpers — shared by the project-detail and hire-me modals ─── */
+function openModal(el) {
+  if (!el) return;
+  el.classList.add('open');
+  el.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(el) {
+  if (!el) return;
+  el.classList.remove('open');
+  el.setAttribute('aria-hidden', 'true');
+  // Only release the scroll lock if no other modal is still open.
+  if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
+}
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(closeModal);
+});
+
+
+/* ─── Project detail modal (opened from a grid card) ─── */
+const projectModalEl = document.getElementById('projectModal');
+let modalProject = null;
+
+function openProjectModal(p) {
+  modalProject = p;
+  const visualHost = document.getElementById('pmVisual');
+  visualHost.innerHTML = '';
+  visualHost.appendChild(buildProjectVisual(p));
+
+  document.getElementById('pmCat').textContent = (p.category || '').toUpperCase();
+  document.getElementById('pmTitle').textContent = currentLang === 'uz' ? p.title_uz : p.title_en;
+  document.getElementById('pmDesc').textContent =
+    (currentLang === 'uz' ? p.description_uz : p.description_en) ||
+    (currentLang === 'uz' ? p.summary_uz     : p.summary_en) || '';
+  document.getElementById('pmTags').innerHTML =
+    (p.tech_tags || []).map(tag => `<span>${escapeHtml(tag)}</span>`).join('');
+
+  const liveEl = document.getElementById('pmLive');
+  const codeEl = document.getElementById('pmCode');
+  liveEl.hidden = !p.live_url; if (p.live_url) liveEl.href = p.live_url;
+  codeEl.hidden = !p.code_url; if (p.code_url) codeEl.href = p.code_url;
+
+  openModal(projectModalEl);
+}
+document.getElementById('projectModalClose')?.addEventListener('click', () => closeModal(projectModalEl));
+document.getElementById('pmHireBtn')?.addEventListener('click', () => {
+  closeModal(projectModalEl);
+  openHireModal(modalProject);
+});
+
+
+/* ─── All-projects grid — filterable, paginated, fed by non-featured
+   published projects. The featured carousel above stays small and
+   cinematic; everything else lives here so the catalog can grow past a
+   handful of projects without the scroll experience degrading. ─── */
+const GRID_PAGE_SIZE = 9;
+let gridProjectsAll = [];
+let gridCategory = 'all';
+let gridVisibleCount = GRID_PAGE_SIZE;
+
+function buildProjectCard(p) {
+  const card = document.createElement('div');
+  card.className = 'proj-card reveal';
+  card.setAttribute('role', 'button');
+  card.tabIndex = 0;
+
+  const visual = document.createElement('div');
+  visual.className = 'proj-card-visual';
+  visual.appendChild(buildProjectVisual(p));
+
+  const title   = currentLang === 'uz' ? p.title_uz : p.title_en;
+  const summary = (currentLang === 'uz' ? p.summary_uz : p.summary_en) || '';
+
+  const body = document.createElement('div');
+  body.className = 'proj-card-body';
+  body.innerHTML = `
+    <div class="proj-card-cat">${escapeHtml((p.category || '').toUpperCase())}</div>
+    <h3 class="proj-card-title">${escapeHtml(title)}</h3>
+    <p class="proj-card-summary">${escapeHtml(summary)}</p>
+    <div class="proj-card-tags">${(p.tech_tags || []).slice(0, 4).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>`;
+
+  card.append(visual, body);
+  const open = () => openProjectModal(p);
+  card.addEventListener('click', open);
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  observeReveal(card);
+  return card;
+}
+
+function renderProjectFilters() {
+  const wrap = document.getElementById('projFilters');
+  if (!wrap) return;
+  const categories = Array.from(new Set(gridProjectsAll.map(p => p.category).filter(Boolean)));
+
+  const makeChip = (value, label) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'proj-filter-chip' + (gridCategory === value ? ' active' : '');
+    chip.textContent = label;
+    chip.addEventListener('click', () => {
+      gridCategory = value;
+      gridVisibleCount = GRID_PAGE_SIZE;
+      renderProjectFilters();
+      renderGrid();
+    });
+    return chip;
+  };
+
+  wrap.innerHTML = '';
+  wrap.appendChild(makeChip('all', t('filter_all')));
+  categories.forEach(c => wrap.appendChild(makeChip(c, c)));
+  // Single-category catalogs don't need a filter row at all.
+  wrap.hidden = categories.length < 2;
+}
+
+function renderGrid() {
+  const gridEl     = document.getElementById('projGrid');
+  const loadMoreBtn = document.getElementById('projLoadMore');
+  const emptyEl    = document.getElementById('projEmpty');
+  if (!gridEl) return;
+
+  const filtered = gridCategory === 'all'
+    ? gridProjectsAll
+    : gridProjectsAll.filter(p => p.category === gridCategory);
+
+  gridEl.innerHTML = '';
+
+  if (!filtered.length) {
+    emptyEl.hidden = false;
+    loadMoreBtn.hidden = true;
+    return;
+  }
+  emptyEl.hidden = true;
+
+  filtered.slice(0, gridVisibleCount).forEach(p => gridEl.appendChild(buildProjectCard(p)));
+  loadMoreBtn.hidden = gridVisibleCount >= filtered.length;
+}
+
+document.getElementById('projLoadMore')?.addEventListener('click', () => {
+  gridVisibleCount += GRID_PAGE_SIZE;
+  renderGrid();
+});
+
+function renderProjectsGrid(rows) {
+  gridProjectsAll = rows;
+  gridCategory = 'all';
+  gridVisibleCount = GRID_PAGE_SIZE;
+  renderProjectFilters();
+  renderGrid();
+}
+
+onLangChange(() => { renderProjectFilters(); renderGrid(); });
+
+
+/* ─── Hire-me flow ─── */
+const hireModalEl = document.getElementById('hireModal');
+const hireForm     = document.getElementById('hireForm');
+let hireReferenceProject = null;
+
+function openHireModal(refProject = null) {
+  hireReferenceProject = refProject || null;
+  const note = document.getElementById('hireRefNote');
+  if (refProject) {
+    const title = currentLang === 'uz' ? refProject.title_uz : refProject.title_en;
+    note.textContent = `${t('hire_ref_lead')}: "${title}"`;
+    note.hidden = false;
+  } else {
+    note.hidden = true;
+  }
+  openModal(hireModalEl);
+}
+document.getElementById('hireFab')?.addEventListener('click', () => openHireModal(null));
+document.getElementById('hireModalClose')?.addEventListener('click', () => closeModal(hireModalEl));
+
+// The floating CTA only appears once the visitor has scrolled past the hero.
+const hireFabEl = document.getElementById('hireFab');
+if (hireFabEl) {
+  onScroll(() => hireFabEl.classList.toggle('visible', window.scrollY > window.innerHeight * 0.6));
+}
+
+if (hireForm) {
+  const hBtn      = document.getElementById('hireBtn');
+  const hBtnLabel = hBtn.querySelector('[data-i18n="hire_send"]');
+  const hStatus   = document.getElementById('hireStatus');
+  const hName     = document.getElementById('hireName');
+  const hEmail    = document.getElementById('hireEmail');
+  const hMessage  = document.getElementById('hireMessage');
+  const hHoneypot = document.getElementById('hireCompany');
+
+  function setHireStatus(text, kind) {
+    hStatus.textContent = text || '';
+    hStatus.classList.toggle('ok', kind === 'ok');
+    hStatus.classList.toggle('error', kind === 'error');
+  }
+
+  function hireValidate() {
+    let firstBad = null;
+    const email = hEmail.value.trim();
+    const checks = [
+      [hName,    hName.value.trim().length >= 2,    'form_err_name'],
+      [hEmail,   EMAIL_RE.test(email),               'form_err_email'],
+      [hMessage, hMessage.value.trim().length >= 10, 'form_err_message'],
+    ];
+    for (const [el, ok, key] of checks) {
+      fieldError(el, ok ? '' : t(key));
+      if (!ok && !firstBad) firstBad = el;
+    }
+    if (firstBad) firstBad.focus();
+    return !firstBad;
+  }
+
+  [hName, hEmail, hMessage].forEach(el => el.addEventListener('input', () => {
+    if (el.classList.contains('invalid')) fieldError(el, '');
+  }));
+
+  hireForm.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    // A bot filled the hidden field: act successful, send nothing.
+    if (hHoneypot && hHoneypot.value.trim() !== '') {
+      setHireStatus(t('hire_sent_msg'), 'ok');
+      hireForm.reset();
+      return;
+    }
+    if (!hireValidate()) return;
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      setHireStatus(t('hire_error_msg'), 'error');
+      return;
+    }
+
+    hBtn.disabled = true;
+    hBtnLabel.textContent = t('form_sending');
+    setHireStatus('', null);
+
+    const payload = {
+      type: 'hire',
+      name: hName.value.trim(),
+      email: hEmail.value.trim(),
+      message: hMessage.value.trim(),
+      project_type: document.getElementById('hireType').value || null,
+      budget: document.getElementById('hireBudget').value || null,
+      timeline: document.getElementById('hireTimeline').value || null,
+      reference_project_id: hireReferenceProject ? hireReferenceProject.id : null,
+    };
+
+    // The DB insert is the durable record the admin inbox depends on — it
+    // must succeed for the request to count as sent.
+    const { error } = await sb.from('inquiries').insert(payload);
+
+    if (error) {
+      console.error('Hire request insert failed:', error.message);
+      hBtnLabel.textContent = t('form_error');
+      hBtn.classList.add('is-error');
+      setHireStatus(t('hire_error_msg'), 'error');
+      setTimeout(() => {
+        hBtnLabel.textContent = t('hire_send');
+        hBtn.classList.remove('is-error');
+        hBtn.disabled = false;
+      }, 4000);
+      return;
+    }
+
+    // Best-effort notification on top of the durable DB row — a failure here
+    // is not shown as an error, same non-fatal pattern as the contact form.
+    if (emailjsReady || initEmailJS()) {
+      const refLine = hireReferenceProject ? `\nReference project: ${hireReferenceProject.title_en}` : '';
+      emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
+        from_name:  payload.name,
+        from_email: payload.email,
+        reply_to:   payload.email,
+        message:    `[HIRE REQUEST]\nProject type: ${payload.project_type || '-'}\nBudget: ${payload.budget || '-'}\nTimeline: ${payload.timeline || '-'}${refLine}\n\n${payload.message}`,
+      }).catch(err => console.error('Hire notification email failed:', err && (err.text || err.message || err)));
+    }
+
+    hBtnLabel.textContent = t('hire_sent');
+    hBtn.classList.add('is-ok');
+    setHireStatus(t('hire_sent_msg'), 'ok');
+    hireForm.reset();
+    setTimeout(() => {
+      hBtnLabel.textContent = t('hire_send');
+      hBtn.classList.remove('is-ok');
+      hBtn.disabled = false;
+      closeModal(hireModalEl);
+    }, 1800);
+  });
+}
+
+
 /* ─── Load projects + skills from Supabase ─── */
 async function initDynamicContent() {
   const sb = getSupabaseClient();
@@ -1050,14 +1456,20 @@ async function initDynamicContent() {
 
   const [skillsRes, projectsRes] = await Promise.all([
     sb.from('skills').select('*').order('sort_order'),
-    sb.from('projects').select('*').eq('is_published', true).eq('featured', true).order('sort_order'),
+    sb.from('projects').select('*').eq('is_published', true).order('sort_order'),
   ]);
 
   if (skillsRes.error) console.error('Skills fetch failed:', skillsRes.error.message);
   else renderSkills(skillsRes.data);
 
-  if (projectsRes.error) console.error('Projects fetch failed:', projectsRes.error.message);
-  else renderFeaturedProjects(projectsRes.data);
+  if (projectsRes.error) {
+    console.error('Projects fetch failed:', projectsRes.error.message);
+  } else {
+    const featured = projectsRes.data.filter(p => p.featured);
+    const others   = projectsRes.data.filter(p => !p.featured);
+    renderFeaturedProjects(featured);
+    renderProjectsGrid(others);
+  }
 
   // Populate any [data-i18n] elements created just now (e.g. the ps-link
   // labels built above) — applyLang() is an idempotent full-DOM rescan.
@@ -1066,11 +1478,6 @@ async function initDynamicContent() {
 
 
 /* ─── Contact Form ─── */
-const EJS_SERVICE  = 'service_b317zyh';
-const EJS_TEMPLATE = 'template_3w4hisk';
-const EJS_KEY      = 'ClVyIQU-leRs4bEwP';
-const OWNER_EMAIL  = 'mr2009ismoil@gmail.com';
-
 const contactForm = document.getElementById('contactForm');
 
 if (contactForm) {
@@ -1084,42 +1491,11 @@ if (contactForm) {
   const messageEl  = document.getElementById('message');
   const honeypot   = document.getElementById('company');
 
-  // The SDK is loaded from a CDN. It used to be initialised at the top level of
-  // this file, so a blocked or failed CDN threw a ReferenceError that killed
-  // every feature defined below it. Now a missing SDK only costs the form.
-  let emailjsReady = false;
-  function initEmailJS() {
-    if (typeof emailjs === 'undefined') return false;
-    try {
-      emailjs.init({ publicKey: EJS_KEY });     // v4 signature
-      emailjsReady = true;
-    } catch {
-      try { emailjs.init(EJS_KEY); emailjsReady = true; }  // pre-v4 fallback
-      catch { emailjsReady = false; }
-    }
-    return emailjsReady;
-  }
-
   function setStatus(text, kind) {
     statusEl.textContent = text || '';
     statusEl.classList.toggle('ok',    kind === 'ok');
     statusEl.classList.toggle('error', kind === 'error');
   }
-
-  function fieldError(input, message) {
-    input.classList.toggle('invalid', Boolean(message));
-    input.setAttribute('aria-invalid', message ? 'true' : 'false');
-    let slot = input.parentElement.querySelector('.ct-field-error');
-    if (!slot) {
-      slot = document.createElement('span');
-      slot.className = 'ct-field-error';
-      input.parentElement.appendChild(slot);
-    }
-    slot.textContent = message || '';
-  }
-
-  // Deliberately permissive: the goal is catching typos, not policing RFC 5322.
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   function validate() {
     let firstBad = null;
@@ -1196,6 +1572,17 @@ if (contactForm) {
 
     const senderEmail = emailEl.value.trim();
 
+    // Best-effort: also keep a durable copy in the admin inbox, alongside
+    // the email notification below. Never blocks or affects the form's
+    // existing success/error UX, which is proven and stays EmailJS-driven.
+    const sb = getSupabaseClient();
+    sb?.from('inquiries').insert({
+      type: 'contact',
+      name: nameEl.value.trim(),
+      email: senderEmail || null,
+      message: messageEl.value.trim(),
+    }).then(({ error }) => { if (error) console.error('Inquiry insert failed:', error.message); });
+
     try {
       await emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
         from_name:  nameEl.value.trim(),
@@ -1226,9 +1613,6 @@ if (contactForm) {
       resetButton(originalLabel);
     }
   });
-
-  // `defer` on the SDK tag means it is parsed before DOMContentLoaded.
-  document.addEventListener('DOMContentLoaded', initEmailJS);
 }
 
 

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIM Admin</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../logo.png" type="image/png" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css?v=5" />
+  <link rel="stylesheet" href="admin.css?v=1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+</head>
+<body class="admin-body">
+
+  <!-- Login -->
+  <div class="admin-login" id="adminLogin">
+    <form class="admin-login-form" id="loginForm" novalidate>
+      <div class="admin-logo">MIM<span>ADMIN</span></div>
+      <div class="ct-field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" required />
+      </div>
+      <div class="ct-field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="ct-btn" id="loginBtn" data-i18n="sign_in">Sign in</button>
+      <p class="ct-status-msg" id="loginStatus" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="admin-shell" id="adminShell" hidden>
+    <aside class="admin-side">
+      <div class="admin-logo">MIM<span>ADMIN</span></div>
+      <nav class="admin-nav">
+        <button type="button" class="admin-nav-btn active" data-view="projects" data-i18n="nav_projects">Projects</button>
+        <button type="button" class="admin-nav-btn" data-view="skills" data-i18n="nav_skills">Skills</button>
+        <button type="button" class="admin-nav-btn" data-view="inquiries">
+          <span data-i18n="nav_inquiries">Inquiries</span> <span class="admin-badge" id="inquiryBadge" hidden></span>
+        </button>
+        <button type="button" class="admin-nav-btn" data-view="settings" data-i18n="nav_settings">Settings</button>
+      </nav>
+      <div class="admin-lang">
+        <button type="button" id="adminLangEN" class="lang-active">EN</button><span>/</span><button type="button" id="adminLangUZ">UZ</button>
+      </div>
+      <a class="admin-view-site" href="../index.html" target="_blank" rel="noopener">View site ↗</a>
+      <button type="button" class="admin-signout" id="signOutBtn" data-i18n="sign_out">Sign out</button>
+    </aside>
+
+    <main class="admin-main">
+
+      <!-- Projects view -->
+      <section class="admin-view" id="view-projects">
+        <div class="admin-view-header">
+          <h1 data-i18n="nav_projects">Projects</h1>
+          <button type="button" class="btn btn-primary" id="newProjectBtn" data-i18n="new_project">+ New Project</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="projectsTable">
+            <thead><tr>
+              <th data-i18n="th_title">Title</th>
+              <th data-i18n="th_category">Category</th>
+              <th data-i18n="th_status">Status</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="projectsTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Skills view -->
+      <section class="admin-view" id="view-skills" hidden>
+        <div class="admin-view-header">
+          <h1 data-i18n="nav_skills">Skills</h1>
+          <button type="button" class="btn btn-primary" id="newSkillBtn" data-i18n="new_skill">+ New Skill</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="skillsTable">
+            <thead><tr>
+              <th data-i18n="th_name">Name</th>
+              <th data-i18n="th_category">Category</th>
+              <th data-i18n="th_pct">%</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="skillsTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Inquiries view -->
+      <section class="admin-view" id="view-inquiries" hidden>
+        <div class="admin-view-header">
+          <h1 data-i18n="nav_inquiries">Inquiries</h1>
+          <div class="proj-filters" id="inquiryFilters">
+            <button type="button" class="proj-filter-chip active" data-filter="all" data-i18n="filter_all">All</button>
+            <button type="button" class="proj-filter-chip" data-filter="hire" data-i18n="filter_hire">Hire</button>
+            <button type="button" class="proj-filter-chip" data-filter="contact" data-i18n="filter_contact">Contact</button>
+          </div>
+        </div>
+        <div class="admin-inbox" id="inquiriesList"></div>
+      </section>
+
+      <!-- Settings view -->
+      <section class="admin-view" id="view-settings" hidden>
+        <div class="admin-view-header"><h1 data-i18n="nav_settings">Settings</h1></div>
+        <form class="admin-form" id="settingsForm">
+          <div class="ct-field"><label>Bio (EN)</label><textarea id="settingsBioEn" rows="4"></textarea></div>
+          <div class="ct-field"><label>Bio (UZ)</label><textarea id="settingsBioUz" rows="4"></textarea></div>
+          <label class="admin-checkbox-field"><input type="checkbox" id="settingsAvailable" /> Available for work</label>
+          <div class="admin-form-actions">
+            <button type="submit" class="ct-btn" id="settingsSaveBtn" data-i18n="save">Save</button>
+          </div>
+          <p class="ct-status-msg" id="settingsStatus" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Project edit modal -->
+  <div class="modal-overlay" id="projectFormModal" aria-hidden="true">
+    <div class="modal-panel admin-modal-panel" role="dialog" aria-modal="true">
+      <button type="button" class="modal-close" id="projectFormClose" aria-label="Close">×</button>
+      <h2 id="projectFormTitle">New Project</h2>
+      <form id="projectForm" class="admin-form" novalidate>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Slug</label><input type="text" id="pfSlug" placeholder="my-project" required /></div>
+          <div class="ct-field"><label>Category</label><input type="text" id="pfCategory" placeholder="E-commerce" /></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Title (EN)</label><input type="text" id="pfTitleEn" required /></div>
+          <div class="ct-field"><label>Title (UZ)</label><input type="text" id="pfTitleUz" required /></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Summary (EN)</label><textarea id="pfSummaryEn" rows="2"></textarea></div>
+          <div class="ct-field"><label>Summary (UZ)</label><textarea id="pfSummaryUz" rows="2"></textarea></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Description (EN)</label><textarea id="pfDescEn" rows="4"></textarea></div>
+          <div class="ct-field"><label>Description (UZ)</label><textarea id="pfDescUz" rows="4"></textarea></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Live URL</label><input type="url" id="pfLiveUrl" placeholder="https://" /></div>
+          <div class="ct-field"><label>Code URL</label><input type="url" id="pfCodeUrl" placeholder="https://" /></div>
+        </div>
+        <div class="ct-field">
+          <label>Tech tags (comma separated)</label>
+          <input type="text" id="pfTags" placeholder="HTML, CSS, Django" />
+        </div>
+        <div class="ct-field">
+          <label>Cover image</label>
+          <input type="file" id="pfImageFile" accept="image/*" />
+          <div class="admin-cover-preview" id="pfImagePreview"></div>
+        </div>
+        <div class="admin-form-grid">
+          <label class="admin-checkbox-field"><input type="checkbox" id="pfFeatured" /> Featured (top carousel)</label>
+          <label class="admin-checkbox-field"><input type="checkbox" id="pfPublished" /> Published</label>
+        </div>
+        <div class="admin-form-actions">
+          <button type="submit" class="ct-btn" id="pfSaveBtn" data-i18n="save">Save</button>
+          <button type="button" class="admin-danger-btn" id="pfDeleteBtn" data-i18n="delete" hidden>Delete</button>
+        </div>
+        <p class="ct-status-msg" id="pfStatus" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Skill edit modal -->
+  <div class="modal-overlay" id="skillFormModal" aria-hidden="true">
+    <div class="modal-panel admin-modal-panel" role="dialog" aria-modal="true">
+      <button type="button" class="modal-close" id="skillFormClose" aria-label="Close">×</button>
+      <h2 id="skillFormTitle">New Skill</h2>
+      <form id="skillForm" class="admin-form" novalidate>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Category (EN)</label><input type="text" id="sfCategoryEn" /></div>
+          <div class="ct-field"><label>Category (UZ)</label><input type="text" id="sfCategoryUz" /></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Name</label><input type="text" id="sfName" required /></div>
+          <div class="ct-field"><label>Proficiency %</label><input type="number" id="sfPct" min="0" max="100" required /></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="ct-field"><label>Note (EN)</label><textarea id="sfNoteEn" rows="2"></textarea></div>
+          <div class="ct-field"><label>Note (UZ)</label><textarea id="sfNoteUz" rows="2"></textarea></div>
+        </div>
+        <div class="ct-field"><label>Sort order</label><input type="number" id="sfSortOrder" value="0" /></div>
+        <div class="admin-form-actions">
+          <button type="submit" class="ct-btn" id="sfSaveBtn" data-i18n="save">Save</button>
+          <button type="button" class="admin-danger-btn" id="sfDeleteBtn" data-i18n="delete" hidden>Delete</button>
+        </div>
+        <p class="ct-status-msg" id="sfStatus" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js?v=2" defer></script>
+</body>
+</html>
