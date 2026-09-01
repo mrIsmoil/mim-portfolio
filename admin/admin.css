@@ -24,6 +24,7 @@
   justify-content: center;
   padding: 24px;
 }
+.admin-login[hidden] { display: none; }
 .admin-login-form {
   width: 100%;
   max-width: 360px;
@@ -55,6 +56,7 @@
 
 /* ─── Shell ─── */
 .admin-shell { display: flex; min-height: 100vh; }
+.admin-shell[hidden] { display: none; }
 .admin-side {
   width: 220px;
   flex-shrink: 0;
