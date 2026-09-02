@@ -117,12 +117,14 @@ drop policy if exists "owner full access skills" on public.skills;
 create policy "owner full access skills" on public.skills
   for all to authenticated using (true) with check (true);
 
--- inquiries: public can only INSERT — never read/update/delete, so one
+-- inquiries: anyone can INSERT (a signed-in owner testing the public forms
+-- in the same browser as the admin panel must not be blocked just for
+-- being authenticated) — but never read/update/delete as a visitor, so one
 -- visitor's contact details can never be read back by another visitor.
 -- Owner can read/update/delete for the admin inbox.
 drop policy if exists "public insert inquiries" on public.inquiries;
 create policy "public insert inquiries" on public.inquiries
-  for insert to anon with check (true);
+  for insert to anon, authenticated with check (true);
 
 drop policy if exists "owner read inquiries" on public.inquiries;
 create policy "owner read inquiries" on public.inquiries
